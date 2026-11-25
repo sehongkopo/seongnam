@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BL21 모니터 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--bg:light-dark(#eceeed,#121514);--panel:light-dark(#fff,#1b1f1d);--ink:light-dark(#16201c,#e6ebe8);--mute:light-dark(#5b6762,#97a39e);--line:light-dark(#d5dad7,#2b312e);
+--ok:light-dark(#2b8a3e,#69db7c);--warn:light-dark(#d97706,#ffb84d);--dang:light-dark(#d6336c,#ff6b8b);--DO:light-dark(#1c7ed6,#5cb8ff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "IBM Plex Sans KR",system-ui,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:clamp(14px,2.4vw,28px) max(3vw,16px)}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 20px;margin-bottom:16px}
+h1{font-size:clamp(22px,3vw,30px);line-height:1.15;margin:0;font-weight:600}
+header a{color:var(--ink);font-size:15px}
+.note{font-size:14px;color:var(--mute);margin:6px 0 0;max-width:62ch}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 4px;font-weight:600}
+.lead{font-size:14px;color:var(--mute);margin:0 0 12px;max-width:66ch}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,.file,select,input[type=datetime-local],input[type=number]{font:inherit;font-size:15px;min-height:42px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button,.file{cursor:pointer}
+button.strong{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--DO);outline-offset:2px}
+.file{display:inline-flex;align-items:center;position:relative}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 16px;margin:0 0 12px;font-size:15px}
+dt{color:var(--mute)}dd{margin:0}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:6px 8px;text-align:left;border-top:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:500;border-top:0}
+td.num{text-align:right}
+.miss{color:var(--dang)}.okc{color:var(--ok)}.opt{color:var(--mute)}
+#preview{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.msg{font-size:14px;margin-top:10px;min-height:1.5em}
+.msg.bad{color:var(--dang)}.msg.good{color:var(--ok)}
+label.inline{display:inline-flex;align-items:center;gap:8px;font-size:15px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px}
+.th{display:grid;grid-template-columns:minmax(0,1fr) 110px 44px;gap:8px;align-items:center;font-size:15px}
+.th input{width:100%;text-align:right}
+.th span:last-child{color:var(--mute);font-size:13px}
+@media(max-width:640px){.grid2{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>모니터 관리자</h1>
+    <p class="note">여기서 바꾼 데이터와 설정은 지금 쓰는 브라우저에만 저장됩니다. 이 사이트에는 서버가 없어서 다른 사람의 화면에는 바뀌지 않습니다.</p>
+  </div>
+  <a href="./">모니터로 돌아가기</a>
+</header>
+
+<section>
+  <h2>운전 데이터</h2>
+  <p class="lead">모니터는 아래 데이터를 배양 시작 시각부터 실시간으로 재생합니다. 다른 운전 기록을 올리면 이 브라우저의 모니터가 그 기록으로 바뀝니다.</p>
+  <dl id="curInfo"><dt>현재</dt><dd>확인 중…</dd></dl>
+  <div class="row">
+    <label class="file">운전 기록 올리기 (.csv, .xlsx)<input type="file" id="file" accept=".csv,.xlsx,.xls"></label>
+    <button id="reset">기본 데이터로 되돌리기</button>
+  </div>
+  <div class="msg" id="fileMsg" role="status"></div>
+  <div id="preview">
+    <h2 id="pvTitle">미리 보기</h2>
+    <dl id="pvInfo"></dl>
+    <div class="scroll"><table><thead><tr><th>항목</th><th>파일의 열</th><th></th></tr></thead><tbody id="pvCols"></tbody></table></div>
+    <h2 style="margin-top:14px">이 기록에서 켜지는 경보</h2>
+    <div class="scroll"><table><thead><tr><th>경보</th><th class="num">횟수</th><th class="num">첫 발생</th></tr></thead><tbody id="pvAl"></tbody></table></div>
+    <div class="row" style="margin-top:14px"><button class="strong" id="apply">이 기록으로 바꾸기</button><button id="cancel">취소</button></div>
+  </div>
+  <p class="lead" style="margin-top:14px">열 이름은 <span class="mono">Time (s), Temp SP/PV, pH SP/PV, DO SP/PV, Agitation, NaOH/HCl pump, NaOH/HCl cum, OD600, Event</span> 형식을 읽습니다. ARA 배양기 로그(<span class="mono">Count, pH, DO, Temp, RPM, ACID, BASE, Date</span>)도 읽으며, 이때 시간은 Date 열에서 계산하고 펌프 가동은 누적량이 늘어난 시점으로 봅니다. 엑셀은 <span class="mono">Raw_1s</span> 시트를 먼저 찾습니다.</p>
+</section>
+
+<section>
+  <h2>운전 시각</h2>
+  <p class="lead">배양 시작 시각부터 흐른 시간만큼 기록을 보여 줍니다. 기본값은 오늘 0시 시작이라 하루 중 시각이 곧 배양 경과 시간이 됩니다.</p>
+  <div class="grid2">
+    <label>배양 시작 시각<br><input type="datetime-local" id="start" step="1"></label>
+    <label>재생 배속<br><select id="speed"><option value="1">1배 (실시간)</option><option value="10">10배</option><option value="60">60배</option><option value="600">600배</option></select></label>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button id="now">지금부터 시작</button>
+    <button id="midnight">오늘 0시로 되돌리기</button>
+    <label class="inline"><input type="checkbox" id="loop"> 끝나면 처음부터 반복</label>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="strong" id="saveRun">운전 시각 저장</button></div>
+  <div class="msg" id="runMsg" role="status"></div>
+</section>
+
+<section>
+  <h2>경보 기준</h2>
+  <p class="lead">편차 경보는 설정값(SP)과의 차이로 판정하며, 주의는 30 s(pH 10 s) 이상 이어질 때 켜집니다. SP 를 바꾼 직후에는 정해 둔 시간 동안 편차 경보를 억제합니다.</p>
+  <div id="ths" style="display:grid;gap:8px;max-width:560px"></div>
+  <div class="row" style="margin-top:12px"><button class="strong" id="saveTh">경보 기준 저장</button><button id="defTh">기본값으로 되돌리기</button></div>
+  <div class="msg" id="thMsg" role="status"></div>
+</section>
+</div>
+
+<script src="common.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+const { esc, hms } = FM;
+let pending = null;
+
+/* ---------- 현재 데이터 ---------- */
+async function showCurrent() {
+  try {
+    const m = await FM.loadData(), D = m.D;
+    $('curInfo').innerHTML = `<dt>현재</dt><dd>${m.uploaded ? '올린 파일' : '기본 데이터'} <span class="mono">${esc(m.source)}</span>${m.savedAt ? `, ${FM.fmtDate(m.savedAt)} 저장` : ''}</dd>
+      <dt>크기</dt><dd class="mono">${D.n.toLocaleString()}행, ${fmtDt(D.dt)} 간격, ${(D.period / 3600).toFixed(2)} h</dd>
+      <dt>사건</dt><dd>${D.events.length}건</dd>`;
+    $('reset').disabled = !m.uploaded;
+  } catch (e) { $('curInfo').innerHTML = `<dt>현재</dt><dd class="miss">읽지 못했습니다. ${esc(e.message)}</dd>`; }
+}
+const fmtDt = dt => dt >= 1 ? (Math.round(dt * 10) / 10) + ' s' : dt.toFixed(2) + ' s';
+
+/* ---------- 파일 올리기 ---------- */
+function loadXLSXLib() {
+  return new Promise((ok, no) => {
+    if (window.XLSX) return ok();
+    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ok; s.onerror = () => no(new Error('엑셀 읽기 라이브러리를 받지 못했습니다. 인터넷 연결을 확인하거나 CSV 로 저장해 올리세요.')); document.head.appendChild(s);
+  });
+}
+$('file').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const msg = $('fileMsg'); msg.className = 'msg'; msg.textContent = f.name + ' 읽는 중…'; $('preview').style.display = 'none'; pending = null;
+  try {
+    let rows;
+    if (/\.csv$/i.test(f.name)) rows = FM.parseCSV(await f.text());
+    else {
+      await loadXLSXLib();
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: false });
+      const name = wb.SheetNames.find(n => n === 'Raw_1s') || wb.SheetNames.find(n => /raw/i.test(n)) || wb.SheetNames[0];
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' });
+    }
+    const D = FM.build(rows[0], rows.slice(1));
+    const E = FM.evaluate(D, FM.thresholds());
+    pending = { name: f.name, csv: FM.toCSV(rows), savedAt: Date.now() };
+    showPreview(f, D, E);
+    msg.textContent = '';
+  } catch (err) { msg.className = 'msg bad'; msg.textContent = f.name + ' 을(를) 읽지 못했습니다. ' + err.message; }
+};
+function showPreview(f, D, E) {
+  $('pvTitle').textContent = '미리 보기: ' + f.name;
+  const bad = E.rules.find(r => r.id === 'sensor').lv.reduce((a, v) => a + (v ? 1 : 0), 0);
+  $('pvInfo').innerHTML = `<dt>크기</dt><dd class="mono">${D.n.toLocaleString()}행, ${fmtDt(D.dt)} 간격, ${(D.period / 3600).toFixed(2)} h</dd>
+    <dt>사건</dt><dd>${D.events.length}건</dd>
+    <dt>센서 이상 행</dt><dd class="${bad ? 'miss' : ''}">${bad.toLocaleString()}행${bad ? ' (pH 2–12, DO −2–130 %, 온도 5–60 °C 밖)' : ''}</dd>`;
+  const ix = D.ix, keys = Object.keys(FM.COLS);
+  $('pvCols').innerHTML = keys.map(k => {
+    const req = FM.REQUIRED.includes(k), j = ix[k], note = j >= 0 ? '<span class="okc">찾음</span>'
+      : req ? '<span class="miss">필수, 없음</span>'
+      : (k === 't' && ix.date >= 0) ? '<span class="opt">Date 열에서 계산</span>'
+      : ((k === 'na' && ix.nac >= 0) || (k === 'hc' && ix.hcc >= 0)) ? '<span class="opt">누적량에서 계산</span>' : '<span class="opt">없음</span>';
+    return `<tr><td>${FM.NAMES[k]}</td><td class="mono">${j >= 0 ? esc(D.header[j]) : '–'}</td><td>${note}</td></tr>`;
+  }).join('');
+  $('pvAl').innerHTML = E.rules.map(r => {
+    const on = E.changes.filter(c => c.rule === r.id && c.from === 0);
+    return `<tr><td>${r.name}</td><td class="num mono">${on.length}</td><td class="num mono">${on.length ? hms(D.t[on[0].i]) : '–'}</td></tr>`;
+  }).join('');
+  $('preview').style.display = 'block';
+}
+$('apply').onclick = async () => {
+  if (!pending) return;
+  try { await FM.putUpload(pending); $('fileMsg').className = 'msg good'; $('fileMsg').textContent = pending.name + ' 로 바꿨습니다. 열려 있는 모니터 탭도 곧 바뀝니다.'; }
+  catch (e) { $('fileMsg').className = 'msg bad'; $('fileMsg').textContent = '저장하지 못했습니다. ' + e.message; }
+  pending = null; $('preview').style.display = 'none'; showCurrent();
+};
+$('cancel').onclick = () => { pending = null; $('preview').style.display = 'none'; $('fileMsg').textContent = ''; };
+$('reset').onclick = async () => { await FM.clearUpload(); $('fileMsg').className = 'msg good'; $('fileMsg').textContent = '기본 데이터 data.csv 로 되돌렸습니다.'; showCurrent(); };
+
+/* ---------- 운전 시각 ---------- */
+const toLocal = ms => { const d = new Date(ms), p = v => String(v).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+function showRun() {
+  const s = FM.settings();
+  $('start').value = toLocal(FM.runStart(s)); $('speed').value = String(s.speed || 1); $('loop').checked = s.loop !== false;
+}
+$('now').onclick = () => { $('start').value = toLocal(Date.now()); };
+$('midnight').onclick = () => { $('start').value = toLocal(FM.todayMidnight()); };
+$('saveRun').onclick = () => {
+  const s = FM.settings(), v = $('start').value, ms = v ? new Date(v).getTime() : NaN;
+  if (isNaN(ms)) { $('runMsg').className = 'msg bad'; $('runMsg').textContent = '배양 시작 시각을 입력하세요.'; return; }
+  s.start = Math.abs(ms - FM.todayMidnight()) < 1000 ? undefined : ms;   // 오늘 0시는 날마다 따라가도록 비워 둔다
+  s.speed = +$('speed').value; s.loop = $('loop').checked;
+  FM.saveSettings(s);
+  $('runMsg').className = 'msg good'; $('runMsg').textContent = `저장했습니다. 배양 시작 ${FM.fmtDate(FM.runStart(s))}, ${s.speed}배속${s.loop ? ', 반복' : ''}.`;
+};
+
+/* ---------- 경보 기준 ---------- */
+function showTh(th = FM.thresholds()) {
+  $('ths').innerHTML = FM.TH_INFO.map(([k, name, unit]) => `<label class="th"><span>${name}</span><input type="number" step="any" id="th_${k}" value="${th[k]}" class="mono"><span>${unit}</span></label>`).join('');
+}
+$('saveTh').onclick = () => {
+  const th = {};
+  for (const [k, name] of FM.TH_INFO) { const v = parseFloat($('th_' + k).value); if (!isFinite(v) || v < 0) { $('thMsg').className = 'msg bad'; $('thMsg').textContent = name + ' 값이 올바르지 않습니다. 0 이상의 숫자를 넣으세요.'; return; } th[k] = v; }
+  if (th.T_dang <= th.T_warn || th.pH_dang <= th.pH_warn || th.rpm_dang <= th.rpm_warn) { $('thMsg').className = 'msg bad'; $('thMsg').textContent = '위험 기준은 주의 기준보다 커야 합니다.'; return; }
+  const s = FM.settings(); s.th = th; FM.saveSettings(s);
+  $('thMsg').className = 'msg good'; $('thMsg').textContent = '경보 기준을 저장했습니다.';
+};
+$('defTh').onclick = () => { const s = FM.settings(); delete s.th; FM.saveSettings(s); showTh(); $('thMsg').className = 'msg good'; $('thMsg').textContent = '기본값으로 되돌렸습니다.'; };
+
+showCurrent(); showRun(); showTh();
+}
+</script>
+</body>
+</html>

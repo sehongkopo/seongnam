@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BL21 발효기 실시간 모니터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--bg:light-dark(#eceeed,#121514);--panel:light-dark(#fff,#1b1f1d);--ink:light-dark(#16201c,#e6ebe8);--mute:light-dark(#5b6762,#97a39e);--line:light-dark(#d5dad7,#2b312e);
+--T:light-dark(#d9480f,#ff8a50);--pH:light-dark(#6741d9,#a28bff);--DO:light-dark(#1c7ed6,#5cb8ff);--rpm:light-dark(#0b7285,#3bc9db);
+--ok:light-dark(#2b8a3e,#69db7c);--warn:light-dark(#d97706,#ffb84d);--dang:light-dark(#d6336c,#ff6b8b);
+--warnbg:light-dark(#fff4e0,#3a2c12);--dangbg:light-dark(#ffe3ec,#45182a);
+--steel:light-dark(#b8c0bc,#56605b);--liq:light-dark(#f3e3b5,#5c5236);--lampoff:light-dark(#d3d9d6,#2e3532)}
+.lamp{stroke:var(--steel);stroke-width:1.5}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1280px;margin:0 auto;padding:clamp(14px,2.4vw,28px) max(3vw,16px)}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+h2{font-size:17px;margin:0 0 10px;font-weight:600}
+
+/* 머리 */
+header{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px 28px;margin-bottom:14px}
+h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;text-wrap:balance}
+.sub{color:var(--mute);font-size:14px;margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px}
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:500}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.live.wait i{background:var(--mute)}
+.tower{display:flex;align-items:center;gap:12px}
+.tower svg{width:34px;height:auto;flex:none}
+.tower .st b{display:block;font-size:22px;line-height:1.1}
+.tower .st span{font-size:13px;color:var(--mute)}
+.clock{text-align:right}.clock b{display:block;font-size:clamp(30px,5vw,46px);line-height:1;font-weight:500}
+.clock span{font-size:13px;color:var(--mute)}
+.lamp{transition:fill .2s}
+.blink{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* 경보 배너 */
+#banner{display:none;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;border-radius:10px;border:1px solid var(--dang);background:var(--dangbg)}
+#banner.show{display:flex}
+#banner.w{border-color:var(--warn);background:var(--warnbg)}
+#banner .msg{flex:1 1 300px;font-weight:500}
+#banner .msg small{display:block;font-weight:400;color:var(--mute);font-size:13px}
+button{font:inherit;font-size:15px;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--DO);outline-offset:2px}
+button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+button.strong{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:600}
+
+/* 용기와 계기판 */
+.top{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px}
+.vessel{padding:10px;display:flex;flex-direction:column;align-items:center}
+.vessel svg{width:100%;max-width:220px;height:auto}
+.phase{font-size:13px;color:var(--mute);text-align:center;margin-top:4px;min-height:2.6em}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.gauge{padding:12px 14px 14px;display:flex;flex-direction:column;align-items:center;transition:border-color .2s,box-shadow .2s}
+.gauge .lab{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mute)}
+.gauge svg{width:100%;max-width:210px;height:auto;margin-top:2px}
+.gauge .val{font-size:clamp(26px,3vw,36px);line-height:1;font-weight:500;margin-top:2px}
+.gauge .val small{font-size:14px;color:var(--mute);margin-left:4px}
+.gauge .sp{font-size:13px;color:var(--mute);margin-top:6px}
+.gauge.l1{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
+.gauge.l2{border-color:var(--dang);box-shadow:0 0 0 1px var(--dang) inset}
+.badge{font-size:12px;padding:1px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap;color:var(--ok)}
+.l1 .badge{color:var(--warn)}.l2 .badge{color:var(--dang)}
+.needle{transition:transform .6s cubic-bezier(.3,1.4,.5,1)}
+
+/* 경보 표시창과 펌프 */
+.mid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.box{padding:14px 16px}
+.ann-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.ann-head h2{margin:0}
+.ann{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.win{min-height:64px;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:4px;font-size:14px;line-height:1.3;color:var(--mute)}
+.win b{font-weight:500;color:var(--ink)}
+.win span{font-size:12px}
+.win.l1{background:var(--warn);border-color:var(--warn);color:#2b1a00}
+.win.l2{background:var(--dang);border-color:var(--dang);color:#fff}
+.win.l1 b{color:#2b1a00}.win.l2 b{color:#fff}
+.win.cleared{border-color:var(--dang);border-style:dashed;color:var(--dang)}
+.win.unack{animation:blink 1s steps(1) infinite}
+.side{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-content:start}
+.mini{padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.mini .lab{font-size:14px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.mini .v{font-size:clamp(20px,2.4vw,26px);font-weight:500;line-height:1.2}
+.mini .v small{font-size:13px;color:var(--mute);margin-left:3px}
+.mini .s{font-size:12px;color:var(--mute)}
+.led{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--line)}
+.led.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.side .wide{grid-column:1/-1}
+
+/* 배양 경과 띠 */
+.strip{margin-top:14px;padding:12px 16px}
+.strip .row{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px;gap:10px;flex-wrap:wrap}
+#tl{display:block;width:100%;height:46px}
+
+/* 트렌드 */
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 14px;margin:14px 0}
+.seg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.seg span{font-size:13px;color:var(--mute);margin-right:4px}
+.seg button{padding:0 10px}
+.ctrl .push{margin-left:auto}
+.fig{position:relative;height:clamp(420px,60vh,580px)}
+.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* 기록 */
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;margin-top:14px}
+#log{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;font-size:14px}
+#log li{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+#log li time{flex:none;color:var(--mute)}
+#log li.l1{color:var(--warn)}#log li.l2{color:var(--dang)}#log li.clear,#log li.ack{color:var(--mute)}
+#log li.event{font-weight:500}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:5px 8px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:500;border-top:0}td:first-child,th:first-child{text-align:left}
+footer{font-size:13px;color:var(--mute);margin-top:16px;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
+footer a{color:inherit}
+#err{display:none;padding:14px 16px;margin-bottom:14px;border:1px solid var(--dang);border-radius:10px;color:var(--dang)}
+
+@media(max-width:1000px){.gauges{grid-template-columns:repeat(2,minmax(0,1fr))}.mid,.bottom{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){header{grid-template-columns:minmax(0,1fr) auto}.clock{grid-column:1/-1;text-align:left}.top{grid-template-columns:minmax(0,1fr)}.vessel svg{max-width:170px}.ann{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{height:480px}}
+@media(prefers-reduced-motion:reduce){.blink,.win.unack{animation:none}.needle{transition:none}.led.on{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>BL21 발효기 실시간 모니터</h1>
+    <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span><span id="src">데이터 불러오는 중…</span><span id="runinfo"></span></div>
+  </div>
+  <div class="tower" aria-live="polite">
+    <svg viewBox="0 0 34 92" role="img" aria-label="신호탑">
+      <rect x="15" y="80" width="4" height="10" fill="var(--steel)"/><rect x="7" y="86" width="20" height="5" rx="1" fill="var(--steel)"/>
+      <rect class="lamp" id="lampR" x="5" y="2" width="24" height="24" rx="5" fill="var(--lampoff)"/>
+      <rect class="lamp" id="lampA" x="5" y="28" width="24" height="24" rx="5" fill="var(--lampoff)"/>
+      <rect class="lamp" id="lampG" x="5" y="54" width="24" height="24" rx="5" fill="var(--lampoff)"/>
+    </svg>
+    <div class="st"><b id="stTxt">–</b><span id="stSub">경보 없음</span></div>
+  </div>
+  <div class="clock"><b class="mono" id="clock">00:00:00</b><span id="clocksub">배양 경과</span></div>
+</header>
+
+<div id="err" role="alert"></div>
+
+<div id="banner" role="alert">
+  <div class="msg" id="bannerMsg"></div>
+  <button id="ackOne" class="strong">확인</button>
+  <button id="ackAll">전체 확인</button>
+</div>
+
+<section class="top">
+  <div class="panel vessel">
+    <svg viewBox="0 0 220 290" role="img" aria-label="발효조 상태 그림">
+      <defs><clipPath id="vc"><rect x="50" y="40" width="120" height="210" rx="18"/></clipPath></defs>
+      <rect id="jacket" x="42" y="96" width="136" height="162" rx="22" fill="none" stroke-width="7" opacity=".55"/>
+      <g clip-path="url(#vc)">
+        <rect x="50" y="40" width="120" height="210" fill="var(--panel)"/>
+        <rect id="liq" x="50" y="92" width="120" height="160" fill="var(--liq)"/>
+        <g id="bub"></g>
+      </g>
+      <rect id="shell" x="50" y="40" width="120" height="210" rx="18" fill="none" stroke="var(--steel)" stroke-width="3"/>
+      <rect x="44" y="32" width="132" height="12" rx="3" fill="var(--steel)"/>
+      <rect x="104" y="6" width="12" height="26" rx="2" fill="var(--steel)"/>
+      <line x1="110" y1="32" x2="110" y2="226" stroke="var(--steel)" stroke-width="3"/>
+      <g id="imp"></g>
+      <path d="M70 244 h80" stroke="var(--steel)" stroke-width="3" stroke-linecap="round"/>
+      <line x1="66" y1="32" x2="66" y2="170" stroke="var(--T)" stroke-width="3"/><text x="58" y="28" font-size="11" fill="var(--T)">T</text>
+      <line x1="150" y1="32" x2="150" y2="180" stroke="var(--pH)" stroke-width="3"/><text x="141" y="28" font-size="11" fill="var(--pH)">pH</text>
+      <line x1="160" y1="32" x2="160" y2="160" stroke="var(--DO)" stroke-width="3"/><text x="160" y="28" font-size="11" fill="var(--DO)">DO</text>
+      <path d="M22 70 v-20 q0 -10 10 -10 h14" fill="none" stroke="var(--steel)" stroke-width="2"/>
+      <rect x="10" y="70" width="24" height="36" rx="4" fill="none" stroke="var(--steel)" stroke-width="2"/>
+      <circle id="ledNa" cx="22" cy="118" r="6" fill="var(--line)"/><text x="7" y="140" font-size="11" fill="var(--mute)">NaOH</text>
+      <path d="M198 70 v-20 q0 -10 -10 -10 h-14" fill="none" stroke="var(--steel)" stroke-width="2"/>
+      <rect x="186" y="70" width="24" height="36" rx="4" fill="none" stroke="var(--steel)" stroke-width="2"/>
+      <circle id="ledHc" cx="198" cy="118" r="6" fill="var(--line)"/><text x="187" y="140" font-size="11" fill="var(--mute)">HCl</text>
+      <text x="110" y="278" font-size="12" text-anchor="middle" fill="var(--mute)" id="rpmTxt">0 rpm</text>
+    </svg>
+    <div class="phase" id="phase">–</div>
+  </div>
+  <div class="gauges" id="gauges"></div>
+</section>
+
+<section class="mid">
+  <div class="panel box">
+    <div class="ann-head"><h2>경보 표시창</h2><button id="ackAll2">전체 확인</button></div>
+    <div class="ann" id="ann"></div>
+  </div>
+  <div class="side">
+    <div class="panel mini"><div class="lab"><span class="led" id="dNa"></span>NaOH</div><div class="v mono"><span id="vNa">–</span><small>mL</small></div><div class="s">누적 투입량</div></div>
+    <div class="panel mini"><div class="lab"><span class="led" id="dHc"></span>HCl</div><div class="v mono"><span id="vHc">–</span><small>mL</small></div><div class="s">누적 투입량</div></div>
+    <div class="panel mini"><div class="lab">OD600</div><div class="v mono" id="vOD">–</div><div class="s">추정값</div></div>
+    <div class="panel mini wide"><div class="lab">최근 10분 투입</div><div class="v mono" style="font-size:18px"><span id="r10">–</span></div><div class="s">NaOH, HCl 가동 시간 비율</div></div>
+  </div>
+</section>
+
+<section class="panel strip">
+  <div class="row"><span>배양 경과와 사건</span><span id="tlTxt"></span></div>
+  <canvas id="tl" aria-label="배양 경과 띠: 사건과 경보 구간"></canvas>
+</section>
+
+<div class="panel ctrl">
+  <div class="seg" id="wins"><span>표시 구간</span></div>
+  <button id="sound" class="push" aria-pressed="false">경보음 꺼짐</button>
+</div>
+<div class="panel fig"><canvas id="trend" aria-label="실시간 트렌드 그래프"></canvas></div>
+
+<section class="bottom">
+  <div class="panel box"><h2>이벤트와 경보 기록</h2><ul id="log"></ul></div>
+  <div class="panel box"><h2>최근 데이터</h2>
+    <div class="scroll"><table><thead><tr><th>경과</th><th>온도 °C</th><th>pH</th><th>DO %</th><th>rpm</th><th>NaOH mL</th><th>HCl mL</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</section>
+<footer><span>과거 운전 기록을 배양 시작 시각부터 흐른 시간에 맞춰 실시간처럼 보여 줍니다. 아직 오지 않은 시간의 값과 경보는 보이지 않습니다.</span><a href="admin.html">관리자</a></footer>
+</div>
+
+<script src="common.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+const { hms, esc } = FM;
+let D = null, E = null, META = null, S = FM.settings(), TH = FM.thresholds();
+let cur = -1, prevLv = {}, unack = new Map(), acks = [], win = 3600, soundOn = false, lastBeep = 0, cycle = -1, clk = null;
+let RANGE = {};
+try { soundOn = localStorage.getItem('fm.sound') === '1'; win = +localStorage.getItem('fm.win') || 3600; } catch {}
+
+const probe = document.createElement('span');
+probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden';
+document.body.appendChild(probe);
+const css = n => { probe.style.color = ''; probe.style.color = `var(${n})`; return getComputedStyle(probe).color; };
+const LVTXT = ['정상', '주의', '위험'];
+
+/* ---------- 계기판 ---------- */
+// 온도와 pH 계기판은 설정값을 12시 방향에 두고 편차를 읽게 한다. DO 와 교반은 고정 눈금이다.
+const LOOPS = [
+  { k: 'T', sp: 'tsp', name: '온도', unit: '°C', d: 2, c: '--T', rules: ['T'], span: 4, fix: [25, 40] },
+  { k: 'pH', sp: 'phsp', name: 'pH', unit: '', d: 3, c: '--pH', rules: ['pH'], span: 0.15, fix: [6.5, 7.5] },
+  { k: 'DO', sp: 'dosp', name: 'DO', unit: '%', d: 1, c: '--DO', rules: ['DOlo', 'DOhi'], fix: [0, 120] },
+  { k: 'rpm', sp: null, name: '교반', unit: 'rpm', d: 0, c: '--rpm', rules: ['rpm'], fix: [0, 1000] }];
+const CX = 100, CY = 100, R = 76, A0 = -120, A1 = 120;
+const ang = f => A0 + (A1 - A0) * Math.max(0, Math.min(1, f));
+const pt = (a, r) => { const t = a * Math.PI / 180; return [CX + r * Math.sin(t), CY - r * Math.cos(t)]; };
+const arc = (a, b, r) => { const [x0, y0] = pt(a, r), [x1, y1] = pt(b, r); return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${b - a > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+$('gauges').innerHTML = LOOPS.map(L => `<div class="panel gauge" id="g_${L.k}">
+  <div class="lab"><span>${L.name}</span><span class="badge" id="b_${L.k}">정상</span></div>
+  <svg viewBox="0 0 200 162" role="img" aria-label="${L.name} 계기판">
+    <path d="${arc(A0, A1, R)}" fill="none" stroke="var(--line)" stroke-width="12"/>
+    <g id="band_${L.k}"></g><g id="tick_${L.k}"></g>
+    <path id="spm_${L.k}" d="" fill="var(--ink)" opacity=".7"/>
+    <g class="needle" id="n_${L.k}" style="transform-origin:${CX}px ${CY}px"><path d="M${CX - 3} ${CY} L${CX} ${CY - R + 6} L${CX + 3} ${CY} Z" fill="var(${L.c})"/></g>
+    <circle cx="${CX}" cy="${CY}" r="7" fill="var(--panel)" stroke="var(${L.c})" stroke-width="3"/>
+  </svg>
+  <div class="val mono" style="color:var(${L.c})"><span id="v_${L.k}">–</span><small>${L.unit}</small></div>
+  <div class="sp mono" id="s_${L.k}">–</div></div>`).join('');
+
+function scale(L, sp) {
+  if (L.span && !isNaN(sp)) return [sp - L.span, sp + L.span];
+  return L.fix;
+}
+function zones(L, sp) {   // [from, to, level]
+  const t = TH;
+  if (L.k === 'T' || L.k === 'pH') {
+    if (isNaN(sp)) return [];
+    const w = t[L.k + '_warn'], d = t[L.k + '_dang'];
+    return [[-1e9, sp - d, 2], [sp - d, sp - w, 1], [sp - w, sp + w, 0], [sp + w, sp + d, 1], [sp + d, 1e9, 2]];
+  }
+  if (L.k === 'DO') {
+    if (isNaN(sp)) return [[-1e9, t.DO_dang, 2]];
+    return [[-1e9, t.DO_dang, 2], [t.DO_dang, sp - t.DO_warn, 1], [sp - t.DO_warn, sp + t.DO_high, 0], [sp + t.DO_high, 1e9, 1]];
+  }
+  return [[-1e9, t.rpm_warn, 0], [t.rpm_warn, t.rpm_dang, 1], [t.rpm_dang, 1e9, 2]];
+}
+const gaugeKey = {};
+function drawDial(L, sp) {
+  const key = sp + '|' + JSON.stringify(TH);
+  if (gaugeKey[L.k] === key) return;
+  gaugeKey[L.k] = key;
+  const [lo, hi] = scale(L, sp), f = v => (v - lo) / (hi - lo), col = ['var(--ok)', 'var(--warn)', 'var(--dang)'];
+  $('band_' + L.k).innerHTML = zones(L, sp).map(([a, b, lv]) => {
+    const fa = Math.max(0, f(a)), fb = Math.min(1, f(b)); if (fb <= fa) return '';
+    return `<path d="${arc(ang(fa), ang(fb), R)}" fill="none" stroke="${col[lv]}" stroke-width="12" opacity="${lv ? .9 : .35}"/>`;
+  }).join('');
+  let tk = '';
+  for (let k = 0; k <= 10; k++) {
+    const a = ang(k / 10), [x0, y0] = pt(a, R - 9), [x1, y1] = pt(a, R - (k % 5 ? 14 : 19));
+    tk += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--mute)" stroke-width="${k % 5 ? 1 : 1.6}"/>`;
+  }
+  const dec = L.k === 'pH' ? 2 : L.k === 'T' ? 0 : 0;
+  for (const k of [0, 0.5, 1]) {
+    const [x, y] = k === 0.5 ? pt(0, R + 12) : pt(ang(k), R);
+    tk += `<text x="${x.toFixed(1)}" y="${(k === 0.5 ? y - 2 : y + 18).toFixed(1)}" font-size="11" text-anchor="middle" fill="var(--mute)" font-family="IBM Plex Mono, monospace">${(lo + (hi - lo) * k).toFixed(dec)}</text>`;
+  }
+  $('tick_' + L.k).innerHTML = tk;
+  if (isNaN(sp) || !L.sp) $('spm_' + L.k).setAttribute('d', '');
+  else { const a = ang(f(sp)), [x, y] = pt(a, R + 2), [xl, yl] = pt(a - 4, R + 11), [xr, yr] = pt(a + 4, R + 11); $('spm_' + L.k).setAttribute('d', `M${x.toFixed(1)} ${y.toFixed(1)}L${xl.toFixed(1)} ${yl.toFixed(1)}L${xr.toFixed(1)} ${yr.toFixed(1)}Z`); }
+}
+
+/* ---------- 경보 표시창 ---------- */
+function buildAnn() {
+  $('ann').innerHTML = E.rules.map(r => `<button class="win" id="w_${r.id}" data-r="${r.id}"><b>${r.name}</b><span id="ws_${r.id}">정상</span></button>`).join('');
+}
+const ruleName = id => E.rules.find(r => r.id === id).name;
+
+/* ---------- 데이터 준비 ---------- */
+function prepare() {
+  E = FM.evaluate(D, TH);
+  // 변화마다 지속 시간을 붙인다.
+  const since = {};
+  for (const c of E.changes) { if (c.from === 0) since[c.rule] = c.i; if (c.to === 0) c.dur = D.t[c.i] - D.t[since[c.rule] ?? c.i]; }
+  // 트렌드 축: 센서 이상값을 뺀 범위
+  RANGE = {};
+  for (const L of LOOPS) {
+    let mn = Infinity, mx = -Infinity; const a = D[L.k], s = L.sp ? D[L.sp] : null;
+    for (let i = 0; i < D.n; i++) { if (E.rules[7].lv[i]) continue; const v = a[i]; if (!isNaN(v)) { if (v < mn) mn = v; if (v > mx) mx = v; } if (s && !isNaN(s[i])) { if (s[i] < mn) mn = s[i]; if (s[i] > mx) mx = s[i]; } }
+    if (!isFinite(mn)) { mn = L.fix[0]; mx = L.fix[1]; }
+    const pad = Math.max((mx - mn) * 0.08, L.k === 'pH' ? 0.01 : 0.5);
+    RANGE[L.k] = [mn - pad, mx + pad];
+  }
+  buildAnn();
+  cur = -1; prevLv = {}; unack = new Map(); acks = []; cycle = -1;
+  for (const k in gaugeKey) delete gaugeKey[k];
+}
+
+/* ---------- 확인 ---------- */
+function ack(ids) {
+  for (const id of ids) if (unack.has(id)) { unack.delete(id); acks.push({ i: cur, rule: id }); }
+  render(cur, true);
+}
+$('ackAll').onclick = $('ackAll2').onclick = () => ack([...unack.keys()]);
+$('ackOne').onclick = () => { const t = topUnack(); if (t) ack([t[0]]); };
+$('ann').onclick = e => { const b = e.target.closest('.win'); if (b) ack([b.dataset.r]); };
+function topUnack() { return [...unack.entries()].sort((a, b) => b[1].level - a[1].level || b[1].i - a[1].i)[0]; }
+
+/* ---------- 경보음 ---------- */
+let AC = null;
+function beep(level) {
+  if (!soundOn) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const n = level === 2 ? 3 : 1;
+    for (let k = 0; k < n; k++) {
+      const o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + k * 0.28;
+      o.frequency.value = level === 2 ? 880 : 660; o.connect(g); g.connect(AC.destination);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      o.start(t0); o.stop(t0 + 0.22);
+    }
+  } catch {}
+}
+const markSound = () => { $('sound').textContent = soundOn ? '경보음 켜짐' : '경보음 꺼짐'; $('sound').classList.toggle('on', soundOn); $('sound').setAttribute('aria-pressed', soundOn); };
+$('sound').onclick = () => { soundOn = !soundOn; try { localStorage.setItem('fm.sound', soundOn ? '1' : '0'); } catch {} markSound(); if (soundOn) beep(1); };
+markSound();
+
+/* ---------- 화면 갱신 ---------- */
+function render(i, force) {
+  if (!D || (i === cur && !force)) return;
+  if (i < cur) { prevLv = {}; unack = new Map(); acks = []; }   // 반복 재생으로 처음부터 다시
+  cur = i;
+  // 경보 상태
+  let worst = 0, newLv = 0;
+  const lvOf = {};
+  for (const r of E.rules) {
+    const v = r.lv[i], p = prevLv[r.id] || 0; lvOf[r.id] = v;
+    if (v > p) { unack.set(r.id, { level: v, i }); newLv = Math.max(newLv, v); }
+    else if (v > 0 && unack.has(r.id)) unack.get(r.id).level = Math.max(unack.get(r.id).level, v);
+    worst = Math.max(worst, v);
+    prevLv[r.id] = v;
+  }
+  if (newLv) { beep(newLv); lastBeep = Date.now(); }
+  else if ([...unack.values()].some(u => u.level === 2) && Date.now() - lastBeep > 15000) { beep(2); lastBeep = Date.now(); }
+  for (const r of E.rules) {
+    const w = $('w_' + r.id), v = lvOf[r.id], u = unack.has(r.id);
+    w.className = 'win' + (v ? ' l' + v : u ? ' cleared' : '') + (u ? ' unack' : '');
+    $('ws_' + r.id).textContent = v ? LVTXT[v] + (u ? ' · 미확인' : ' · 확인함') : u ? '해제 · 미확인' : '정상';
+    w.setAttribute('aria-label', r.name + ' ' + $('ws_' + r.id).textContent + (u ? ', 눌러서 확인' : ''));
+  }
+  // 신호탑
+  const anyUn = unack.size > 0, unLv = Math.max(0, ...[...unack.values()].map(u => u.level));
+  const R_ = $('lampR'), A_ = $('lampA'), G_ = $('lampG');
+  R_.setAttribute('fill', worst === 2 || unLv === 2 ? 'var(--dang)' : 'var(--lampoff)');
+  A_.setAttribute('fill', worst === 1 || (unLv === 1 && worst < 2) ? 'var(--warn)' : 'var(--lampoff)');
+  G_.setAttribute('fill', worst === 0 && !anyUn ? 'var(--ok)' : 'var(--lampoff)');
+  R_.classList.toggle('blink', unLv === 2); A_.classList.toggle('blink', unLv === 1);
+  $('stTxt').textContent = LVTXT[worst]; $('stTxt').style.color = worst ? `var(${worst === 2 ? '--dang' : '--warn'})` : 'var(--ok)';
+  const nAct = Object.values(lvOf).filter(Boolean).length;
+  $('stSub').textContent = nAct ? `활성 경보 ${nAct}건` + (anyUn ? `, 미확인 ${unack.size}건` : '') : anyUn ? `해제됐으나 미확인 ${unack.size}건` : '경보 없음';
+  // 배너
+  const top = topUnack();
+  if (top) {
+    const [id, u] = top, v = lvOf[id];
+    $('banner').className = 'show' + (u.level === 2 ? '' : ' w');
+    $('bannerMsg').innerHTML = `${LVTXT[u.level]} · ${esc(ruleName(id))} ${v ? '발생 중' : '해제됨'}<small>${hms(D.t[u.i])} 발생${unack.size > 1 ? `, 미확인 경보 ${unack.size}건` : ''}</small>`;
+  } else $('banner').className = '';
+  // 계기판
+  for (const L of LOOPS) {
+    const v = D[L.k][i], sp = L.sp ? D[L.sp][i] : NaN, bad = E.rules[7].lv[i] > 0;
+    drawDial(L, sp);
+    const [lo, hi] = scale(L, sp);
+    $('n_' + L.k).style.transform = `rotate(${ang((v - lo) / (hi - lo))}deg)`;
+    $('v_' + L.k).textContent = isNaN(v) ? '–' : v.toFixed(L.d);
+    $('s_' + L.k).textContent = L.k === 'rpm' ? `상한 ${TH.rpm_dang} rpm` : isNaN(sp) ? 'SP 없음' : `SP ${sp.toFixed(L.d)}${L.unit ? ' ' + L.unit : ''}  편차 ${(v - sp >= 0 ? '+' : '') + (v - sp).toFixed(L.d)}`;
+    const lv = Math.max(bad ? 2 : 0, ...L.rules.map(id => lvOf[id]));
+    $('g_' + L.k).className = 'panel gauge' + (lv ? ' l' + lv : '');
+    $('b_' + L.k).textContent = bad ? '센서 이상' : LVTXT[lv];
+  }
+  // 펌프와 OD
+  const f1 = v => isNaN(v) ? '–' : v.toFixed(1);
+  $('vNa').textContent = f1(D.nac[i]); $('vHc').textContent = f1(D.hcc[i]); $('vOD').textContent = f1(D.od[i]);
+  $('dNa').classList.toggle('on', D.na[i] > 0); $('dHc').classList.toggle('on', D.hc[i] > 0);
+  $('ledNa').setAttribute('fill', D.na[i] > 0 ? css('--ok') : css('--line')); $('ledHc').setAttribute('fill', D.hc[i] > 0 ? css('--ok') : css('--line'));
+  const j0 = FM.indexAt(D, D.t[i] - 600); let na = 0, hc = 0, tt = 0;
+  for (let k = j0 + 1; k <= i; k++) { const dt = D.t[k] - D.t[k - 1]; tt += dt; if (D.na[k] > 0) na += dt; if (D.hc[k] > 0) hc += dt; }
+  $('r10').textContent = tt ? `NaOH ${(na / tt * 100).toFixed(1)} %   HCl ${(hc / tt * 100).toFixed(1)} %` : '–';
+  $('rpmTxt').textContent = Math.round(D.rpm[i]) + ' rpm';
+  $('shell').setAttribute('stroke', worst === 2 ? css('--dang') : worst === 1 ? css('--warn') : css('--steel'));
+  const T = D.T[i], fT = Math.max(0, Math.min(1, (T - 28) / 10));
+  $('jacket').setAttribute('stroke', `rgb(${Math.round(60 + 190 * fT)},${Math.round(150 - 60 * fT)},${Math.round(230 - 170 * fT)})`);
+  $('liq').setAttribute('opacity', isNaN(D.od[i]) ? .6 : (.35 + Math.min(.65, D.od[i] / 90)).toFixed(2));
+  // 단계와 기록
+  let ph = '–'; for (let k = D.events.length - 1; k >= 0; k--) if (D.events[k].i <= i) { ph = hms(D.t[D.events[k].i]) + ' ' + D.events[k].text; break; }
+  $('phase').textContent = ph;
+  $('clock').textContent = hms(D.t[i]);
+  renderLog(i); renderRows(i); drawTimeline(i); drawChart(i);
+}
+
+function renderLog(i) {
+  const items = [];
+  for (const e of D.events) if (e.i <= i) items.push({ i: e.i, cls: 'event', text: e.text });
+  for (const c of E.changes) {
+    if (c.i > i) break;
+    const nm = ruleName(c.rule);
+    if (c.to > c.from) items.push({ i: c.i, cls: 'l' + c.to, text: `${nm} ${LVTXT[c.to]}${c.from ? ' (상향)' : ' 발생'}` });
+    else if (c.to === 0) items.push({ i: c.i, cls: 'clear', text: `${nm} 해제, 지속 ${hms(c.dur || 0)}` });
+    else items.push({ i: c.i, cls: 'l' + c.to, text: `${nm} ${LVTXT[c.to]}로 완화` });
+  }
+  for (const a of acks) items.push({ i: a.i, cls: 'ack', text: `운전자 확인: ${ruleName(a.rule)}` });
+  items.sort((a, b) => b.i - a.i);
+  $('log').innerHTML = items.slice(0, 60).map(e => `<li class="${e.cls}"><time class="mono">${hms(D.t[e.i])}</time><span>${esc(e.text)}</span></li>`).join('') || '<li><span>아직 기록이 없습니다.</span></li>';
+}
+function renderRows(i) {
+  let s = '';
+  const f = (v, d) => isNaN(v) ? '–' : v.toFixed(d);
+  for (let k = i; k > i - 10 && k >= 0; k--) s += `<tr class="mono"><td>${hms(D.t[k])}</td><td>${f(D.T[k], 2)}</td><td>${f(D.pH[k], 3)}</td><td>${f(D.DO[k], 1)}</td><td>${f(D.rpm[k], 0)}</td><td>${f(D.nac[k], 1)}</td><td>${f(D.hcc[k], 1)}</td></tr>`;
+  $('rows').innerHTML = s;
+}
+
+/* ---------- 캔버스 공통 ---------- */
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, r.width, r.height);
+  return [c, r.width, r.height];
+}
+const chLevel = { T: ['T'], pH: ['pH'], DO: ['DOlo', 'DOhi'], rpm: ['rpm'] };
+
+/* 배양 경과 띠: 지나간 시간만 칠하고, 사건과 경보 구간을 표시한다. */
+function drawTimeline(i) {
+  const [c, W, H] = fit($('tl')), P = D.period, X = t => 1 + (W - 2) * t / P, now = D.t[i];
+  c.fillStyle = css('--line'); c.fillRect(0, 14, W, 12);
+  c.fillStyle = css('--steel'); c.fillRect(0, 14, X(now), 12);
+  const cw = css('--warn'), cd = css('--dang');
+  const open = {};
+  for (const ch of E.changes) {
+    if (ch.i > i) break;
+    if (ch.from === 0) open[ch.rule] = ch;
+    if (ch.to === 0 && open[ch.rule]) { const o = open[ch.rule]; c.fillStyle = o.to === 2 ? cd : cw; c.fillRect(X(D.t[o.i]), 30, Math.max(2, X(D.t[ch.i]) - X(D.t[o.i])), 6); delete open[ch.rule]; }
+  }
+  for (const k in open) { const o = open[k]; c.fillStyle = o.to === 2 ? cd : cw; c.fillRect(X(D.t[o.i]), 30, Math.max(2, X(now) - X(D.t[o.i])), 6); }
+  c.fillStyle = css('--ink');
+  for (const e of D.events) if (e.i <= i) { const x = X(D.t[e.i]); c.fillRect(x - 1, 8, 2, 24); }
+  c.fillStyle = css('--ink'); c.beginPath(); const xn = X(now); c.moveTo(xn - 6, 0); c.lineTo(xn + 6, 0); c.lineTo(xn, 9); c.fill();
+  c.fillStyle = css('--mute'); c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'bottom';
+  const step = P > 36 * 3600 ? 12 * 3600 : P > 8 * 3600 ? 3 * 3600 : 3600;
+  for (let t = 0; t <= P; t += step) { c.textAlign = t === 0 ? 'left' : t + step > P ? 'right' : 'center'; c.fillText(Math.round(t / 3600) + ' h', X(t), H); }
+  const done = D.events.filter(e => e.i <= i).length;
+  $('tlTxt').textContent = `${(now / 3600).toFixed(2)} h / ${(P / 3600).toFixed(1)} h, 사건 ${done}건 지남`;
+}
+
+/* 트렌드: 지나간 구간만 그린다. 경보가 켜졌던 구간은 바탕에 옅게 칠한다. */
+function drawChart(i) {
+  const [ctx, W, H] = fit($('trend'));
+  const narrow = W < 520, Lm = narrow ? 46 : 70, Rm = 12, top = 10, bottom = 26, pumpH = 26, gap = 10;
+  const sh = (H - top - bottom - pumpH - gap * 4) / 4, pw = W - Lm - Rm;
+  const tNow = D.t[i], t0 = tNow - win, X = t => Lm + (t - t0) / win * pw;
+  const cols = Math.max(1, Math.floor(pw)), per = win / cols;
+  const colIdx = []; for (let c = 0; c <= cols; c++) colIdx.push(FM.indexAt(D, t0 + c * per));
+  const ink = css('--ink'), mute = css('--mute'), line = css('--line'), cw = css('--warn'), cd = css('--dang');
+  ctx.font = '12px "IBM Plex Sans KR", sans-serif'; ctx.textBaseline = 'middle';
+  LOOPS.forEach((L, n) => {
+    const [lo, hi] = RANGE[L.k], y0 = top + n * (sh + gap), Y = v => y0 + sh - (v - lo) / (hi - lo) * sh, col = css(L.c), a = D[L.k];
+    // 경보 구간
+    for (let c = 0; c < cols; c++) {
+      const s0 = colIdx[c], s1 = colIdx[c + 1]; if (t0 + c * per > tNow || t0 + c * per < 0) continue;
+      let lv = 0; for (const id of chLevel[L.k]) { const arr = E.rules.find(r => r.id === id).lv; for (let s = s0; s <= Math.min(s1, i); s++) if (arr[s] > lv) lv = arr[s]; }
+      if (lv) { ctx.fillStyle = lv === 2 ? cd : cw; ctx.globalAlpha = .14; ctx.fillRect(Lm + c, y0, 1.5, sh); ctx.globalAlpha = 1; }
+    }
+    ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.strokeRect(Lm + .5, y0 + .5, pw, sh);
+    ctx.fillStyle = mute; ctx.textAlign = 'right';
+    for (const g of [lo, (lo + hi) / 2, hi]) { const y = Y(g); ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(Lm, y + .5); ctx.lineTo(Lm + pw, y + .5); ctx.stroke(); ctx.globalAlpha = 1;
+      if (!narrow || g !== (lo + hi) / 2) ctx.fillText(g.toFixed(L.k === 'pH' ? 2 : L.k === 'T' ? 1 : 0), Lm - 6, Math.min(Math.max(y, y0 + 6), y0 + sh - 6)); }
+    ctx.save(); ctx.beginPath(); ctx.rect(Lm, y0, pw, sh); ctx.clip();
+    const bad = E.rules[7].lv;
+    const trace = (arr, dash, color, width, alpha) => {
+      ctx.save(); if (dash) ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.beginPath();
+      let pen = false;
+      if (per <= D.dt * 2) {
+        for (let s = Math.max(0, colIdx[0]); s <= i; s++) { const v = arr[s]; if (isNaN(v) || bad[s]) { pen = false; continue; } const x = X(D.t[s]), y = Y(v); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; }
+      } else {
+        for (let c = 0; c < cols; c++) {
+          if (t0 + (c + 1) * per < 0) continue; if (t0 + c * per > tNow) break;
+          let sum = 0, k = 0; for (let s = colIdx[c]; s <= Math.min(colIdx[c + 1], i); s++) { const v = arr[s]; if (!isNaN(v) && !bad[s]) { sum += v; k++; } }
+          if (!k) { pen = false; continue; } const x = Lm + c + .5, y = Y(sum / k); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true;
+        }
+      }
+      ctx.stroke(); ctx.restore();
+    };
+    if (L.sp) trace(D[L.sp], [5, 4], ink, 1.2, .45);
+    trace(a, null, col, 1.6, 1);
+    ctx.restore();
+    ctx.textAlign = 'left'; ctx.font = '600 12px "IBM Plex Sans KR", sans-serif';
+    const lbl = L.name + (L.unit ? ' (' + L.unit + ')' : ''), lw = ctx.measureText(lbl).width;
+    ctx.fillStyle = css('--panel'); ctx.fillRect(Lm + 5, y0 + 3, lw + 7, 18); ctx.fillStyle = col; ctx.fillText(lbl, Lm + 8, y0 + 12);
+    ctx.font = '12px "IBM Plex Sans KR", sans-serif';
+  });
+  const py = top + 4 * (sh + gap); ctx.strokeStyle = line; ctx.strokeRect(Lm + .5, py + .5, pw, pumpH);
+  const cNa = css('--ok'), cHc = css('--dang');
+  ctx.textAlign = 'right'; ctx.font = '11px "IBM Plex Sans KR", sans-serif';
+  ctx.fillStyle = cNa; ctx.fillText('NaOH', Lm - 6, py + pumpH / 4 + 1); ctx.fillStyle = cHc; ctx.fillText('HCl', Lm - 6, py + pumpH * 3 / 4 - 1);
+  for (let c = 0; c < cols; c++) {
+    if (t0 + c * per > tNow) break; if (t0 + (c + 1) * per < 0) continue;
+    let na = 0, hc = 0; for (let s = colIdx[c]; s <= Math.min(colIdx[c + 1], i); s++) { if (D.na[s] > 0) na = 1; if (D.hc[s] > 0) hc = 1; }
+    if (na) { ctx.fillStyle = cNa; ctx.fillRect(Lm + c, py + 3, 1.2, pumpH / 2 - 4); }
+    if (hc) { ctx.fillStyle = cHc; ctx.fillRect(Lm + c, py + pumpH / 2 + 1, 1.2, pumpH / 2 - 4); }
+  }
+  const step = { 600: 60, 3600: 600, 21600: 3600, 86400: narrow ? 21600 : 10800 }[win] || 3600;
+  ctx.fillStyle = mute; ctx.textAlign = 'center'; ctx.font = '12px "IBM Plex Mono", monospace';
+  for (let s = Math.ceil(t0 / step) * step; s <= tNow; s += step) {
+    if (s < 0) continue; const x = X(s);
+    ctx.strokeStyle = line; ctx.globalAlpha = .35; ctx.beginPath(); ctx.moveTo(x + .5, top); ctx.lineTo(x + .5, py + pumpH); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillText(Math.floor(s / 3600) + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'), x, H - bottom / 2);
+  }
+  ctx.strokeStyle = ink; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(X(tNow) - .5, top); ctx.lineTo(X(tNow) - .5, py + pumpH); ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+/* ---------- 용기 애니메이션 ---------- */
+const bub = $('bub'), B = Array.from({ length: 14 }, () => ({ x: 70 + Math.random() * 80, y: 92 + Math.random() * 150, r: 1.5 + Math.random() * 2 }));
+bub.innerHTML = B.map(() => '<circle fill="none" stroke="var(--steel)" stroke-width="1"/>').join('');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let rot = 0, last = 0;
+function drawVessel(dt) {
+  const rpm = D && cur >= 0 ? D.rpm[cur] : 0;
+  if (!reduce) rot += rpm / 60 * 2 * Math.PI * dt * 0.06;
+  let s = '';
+  for (const cy of [150, 206]) {
+    s += `<rect x="96" y="${cy - 2}" width="28" height="4" rx="1" fill="var(--steel)"/>`;
+    for (let k = 0; k < 6; k++) { const a = rot + k * Math.PI / 3, sn = Math.sin(a), front = Math.cos(a) > 0, x1 = 110 + 8 * sn, x2 = 110 + 22 * sn;
+      s += `<rect x="${(Math.min(x1, x2) - .8).toFixed(1)}" y="${cy - 7}" width="${(Math.abs(x2 - x1) + 1.6).toFixed(1)}" height="14" fill="var(--steel)" opacity="${front ? 1 : .45}"/>`; }
+  }
+  $('imp').innerHTML = s;
+  const cs = bub.children, sp = reduce ? 0 : (14 + rpm / 800 * 40) * dt;
+  B.forEach((b, k) => { b.y -= sp * (1 + b.r / 4); b.x += Math.sin(rot * 0.3 + k) * .25; if (b.y < 96) { b.y = 240; b.x = 72 + Math.random() * 76; }
+    cs[k].setAttribute('cx', b.x.toFixed(1)); cs[k].setAttribute('cy', b.y.toFixed(1)); cs[k].setAttribute('r', b.r); });
+}
+function frame(ts) { const dt = last ? Math.min(.1, (ts - last) / 1000) : 0; last = ts; drawVessel(dt); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+
+/* ---------- 실시간 시계 ---------- */
+function tick() {
+  if (!D) return;
+  const L = FM.liveClock(D, S);
+  if (FREEZE !== null) { L.i = FM.indexAt(D, FREEZE); L.waiting = L.ended = false; }
+  if (L.cycle !== cycle) { if (cycle >= 0) { prevLv = {}; unack = new Map(); acks = []; cur = -1; } cycle = L.cycle; }
+  const now = Date.now();
+  $('live').className = 'live' + (L.waiting || L.ended ? ' wait' : '');
+  $('liveTxt').textContent = L.waiting ? `배양 시작 전, ${hms((L.start - now) / 1000)} 남음` : L.ended ? '배양 종료' : L.speed === 1 ? '실시간' : `실시간 ${L.speed}배속`;
+  $('runinfo').textContent = `배양 시작 ${FM.fmtDate(L.start + (L.loop ? L.cycle * D.period * 1000 / L.speed : 0))}` + (L.loop ? ', 반복' : '');
+  $('clocksub').textContent = '배양 경과' + (L.waiting ? ' (대기)' : '');
+  render(L.i);
+}
+// ?t=초 : 그 배양 시각에 화면을 고정한다 (점검용).
+const FREEZE = (q => q !== null && isFinite(+q) ? +q : null)(new URLSearchParams(location.search).get('t'));
+function restartClock() { clearInterval(clk); clk = setInterval(tick, 250); tick(); }
+
+/* ---------- 표시 구간 ---------- */
+const WINS = [[600, '10분'], [3600, '1시간'], [21600, '6시간'], [86400, '24시간']];
+$('wins').insertAdjacentHTML('beforeend', WINS.map(w => `<button data-w="${w[0]}">${w[1]}</button>`).join(''));
+const markWin = () => document.querySelectorAll('#wins button').forEach(b => { b.classList.toggle('on', +b.dataset.w === win); b.setAttribute('aria-pressed', +b.dataset.w === win); });
+$('wins').onclick = e => { const b = e.target.closest('button'); if (!b) return; win = +b.dataset.w; try { localStorage.setItem('fm.win', win); } catch {} markWin(); if (cur >= 0) drawChart(cur); };
+markWin();
+const redraw = () => { if (D && cur >= 0) { for (const k in gaugeKey) delete gaugeKey[k]; drawChart(cur); drawTimeline(cur); } };
+new ResizeObserver(redraw).observe($('trend'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+
+/* ---------- 불러오기 ---------- */
+async function load() {
+  try {
+    META = await FM.loadData(); D = META.D; S = FM.settings(); TH = FM.thresholds(); prepare();
+    $('src').textContent = `${META.uploaded ? '올린 파일' : '기본 데이터'} ${META.source}, ${D.n.toLocaleString()}행, ${D.dt >= 1 ? Math.round(D.dt) + ' s' : D.dt.toFixed(2) + ' s'} 간격`;
+    $('err').style.display = 'none';
+    restartClock();
+  } catch (e) { $('err').style.display = 'block'; $('err').textContent = '데이터를 불러오지 못했습니다. ' + e.message + ' 관리자 페이지에서 파일을 다시 올리거나 기본 데이터로 되돌리세요.'; $('src').textContent = '데이터 없음'; }
+}
+// 관리자 페이지에서 설정이나 파일을 바꾸면 다시 읽는다.
+if (FM.bc) FM.bc.onmessage = m => { if (m.data === 'data') load(); else { S = FM.settings(); const th = FM.thresholds(); if (JSON.stringify(th) !== JSON.stringify(TH)) { TH = th; prepare(); } restartClock(); } };
+addEventListener('storage', e => { if (e.key === 'fm.settings') { S = FM.settings(); const th = FM.thresholds(); if (JSON.stringify(th) !== JSON.stringify(TH)) { TH = th; prepare(); } restartClock(); } });
+window.__fm = { get cur() { return cur; }, render: i => render(i, true), get D() { return D; }, get E() { return E; } };
+load();
+}
+</script>
+</body>
+</html>
