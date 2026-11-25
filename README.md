@@ -10,6 +10,7 @@ E. coli BL21 재조합 단백질 생산 배양의 운전 기록(`data.csv`, 24 h
 |---|---|
 | 모니터 | https://sehongkopo.github.io/seongnam/ |
 | 관리자 | https://sehongkopo.github.io/seongnam/admin.html |
+| FPLC 정제 모니터 | https://sehongkopo.github.io/seongnam/fplc/ ([설명](fplc/README.md)) |
 
 ## 화면
 

@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FPLC 정제 실시간 모니터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Oswald:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--bg:light-dark(#eceeed,#121514);--panel:light-dark(#fff,#1b1f1d);--ink:light-dark(#16201c,#e6ebe8);--mute:light-dark(#5b6762,#97a39e);--line:light-dark(#d5dad7,#2b312e);
+--uv:light-dark(#1c7ed6,#5cb8ff);--cond:light-dark(#d9480f,#ff8a50);--B:light-dark(#0b7285,#3bc9db);--P:light-dark(#a61e4d,#f783ac);--flow:light-dark(#5f3dc4,#b197fc);--pH:light-dark(#5c940d,#a9e34b);
+--ok:light-dark(#2b8a3e,#69db7c);--warn:light-dark(#d97706,#ffb84d);--dang:light-dark(#d6336c,#ff6b8b);
+--warnbg:light-dark(#fff4e0,#3a2c12);--sens:light-dark(#495057,#adb5bd);--okbg:light-dark(#e3f4e7,#16301f);--dangbg:light-dark(#ffe3ec,#45182a);
+--steel:light-dark(#b8c0bc,#56605b);--tube:light-dark(#9fb0ba,#6b7a83)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1280px;margin:0 auto;padding:clamp(14px,2.4vw,28px) max(3vw,16px)}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+h2{font-size:17px;margin:0 0 10px;font-weight:600}
+
+/* 머리 */
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px 24px;margin-bottom:14px}
+.clocks{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px 18px;margin-left:auto}
+h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;text-wrap:balance}
+.sub{color:var(--mute);font-size:14px;margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px}
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:500}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.live.wait i{background:var(--mute)}
+.chip{display:flex;align-items:center;gap:12px;padding:9px 18px 9px 14px;border-radius:999px;background:var(--okbg);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);transition:background .3s,border-color .3s}
+.chip .pulse{position:relative;width:12px;height:12px;border-radius:50%;background:var(--ok);flex:none}
+.chip .pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite}
+@keyframes ping{75%,100%{transform:scale(2.6);opacity:0}}
+.chip b{display:block;font-size:17px;font-weight:600;line-height:1.2;color:var(--ok);letter-spacing:-.01em}
+.chip small{display:block;font-size:12px;color:var(--mute);line-height:1.3}
+.chip.w{background:var(--warnbg);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}.chip.w .pulse{background:var(--warn)}.chip.w b{color:var(--warn)}
+.chip.d{background:var(--dangbg);border-color:color-mix(in srgb,var(--dang) 50%,transparent)}.chip.d .pulse{background:var(--dang)}.chip.d b{color:var(--dang)}
+.chip.d .pulse::after{animation-duration:1s}
+/* 플립 시계 */
+.clk{display:flex;flex-direction:column;gap:4px}
+.clk .cap{font-size:13px;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
+.clk .cap b{font-weight:500;color:var(--ink)}
+.flip{--h:46px;--w:30px;align-self:flex-start;display:inline-flex;align-items:center;gap:3px;padding:6px 7px;background:#000;border-radius:9px;box-shadow:0 2px 6px rgb(0 0 0 / .25)}
+.fd{position:relative;width:var(--w);height:var(--h);perspective:220px;font:500 calc(var(--h) * .8)/var(--h) "Oswald","IBM Plex Mono",sans-serif;color:#f5f5f2}
+.fd .h{position:absolute;left:0;right:0;height:calc(var(--h) / 2);overflow:hidden;backface-visibility:hidden}
+.fd .t{top:0;border-radius:5px 5px 0 0;background:linear-gradient(#2c2e31,#222427)}
+.fd .b{top:calc(var(--h) / 2);border-radius:0 0 5px 5px;background:linear-gradient(#1c1e20,#26282b)}
+.fd .h span{position:absolute;left:0;right:0;height:var(--h);text-align:center}
+.fd .t span{top:0}.fd .b span{top:calc(var(--h) / -2)}
+.fd::after{content:"";position:absolute;left:0;right:0;top:calc(var(--h) / 2 - .5px);height:1px;background:#000;z-index:4}
+.fd .ft{z-index:3;transform-origin:50% 100%;animation:fold .3s ease-in forwards}
+.fd .fb{z-index:3;transform-origin:50% 0;transform:rotateX(90deg);animation:unfold .3s ease-out .3s forwards}
+@keyframes fold{to{transform:rotateX(-90deg)}}
+@keyframes unfold{to{transform:rotateX(0)}}
+.fsep{width:8px;text-align:center;color:#f5f5f2;font:500 calc(var(--h) * .6)/var(--h) "Oswald",sans-serif}
+@keyframes blink{50%{opacity:.25}}
+
+/* 경보 배너 */
+#banner{display:none;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;border-radius:10px;border:1px solid var(--dang);background:var(--dangbg)}
+#banner.show{display:flex}
+#banner.w{border-color:var(--warn);background:var(--warnbg)}
+#banner .msg{flex:1 1 300px;font-weight:500}
+#banner .msg small{display:block;font-weight:400;color:var(--mute);font-size:13px}
+button{font:inherit;font-size:15px;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
+button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+button.strong{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:600}
+
+/* 유로 그림과 계기판 */
+.top{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px}
+.vessel{padding:10px;display:flex;flex-direction:column;align-items:center}
+.vessel svg{width:100%;max-width:260px;height:auto}
+.vessel svg text{font-family:"IBM Plex Sans KR",sans-serif}
+.vessel svg .v{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--ink)}
+.vessel svg .l{font-size:10px;fill:var(--mute)}
+.fl{fill:none;stroke:var(--tube);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.fa{fill:none;stroke:#fff;stroke-opacity:.75;stroke-width:1.2;stroke-dasharray:3 9;stroke-linecap:round;stroke-linejoin:round}
+.phase{font-size:13px;color:var(--mute);text-align:center;margin-top:4px;min-height:2.6em}
+.phase b{color:var(--ink);font-weight:600}
+.vessel .chip{margin-top:10px;align-self:stretch;justify-content:center}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.gauge{padding:12px 14px 14px;display:flex;flex-direction:column;align-items:center;transition:border-color .2s,box-shadow .2s}
+.gauge .lab{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mute)}
+.gauge svg{width:100%;max-width:210px;height:auto;margin-top:2px}
+.gauge .val{font-size:clamp(26px,3vw,36px);line-height:1;font-weight:500;margin-top:2px}
+.gauge .val small{font-size:14px;color:var(--mute);margin-left:4px}
+.gauge .sp{font-size:13px;color:var(--mute);margin-top:6px;text-align:center}
+.gauge.l1{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
+.gauge.l2{border-color:var(--dang);box-shadow:0 0 0 1px var(--dang) inset}
+.badge{font-size:12px;padding:1px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap;color:var(--ok)}
+.l1 .badge{color:var(--warn)}.l2 .badge{color:var(--dang)}
+.needle{transition:transform .6s cubic-bezier(.3,1.4,.5,1)}
+
+/* 이벤트 요약 */
+.right{display:flex;flex-direction:column;gap:14px}
+.evsum{padding:14px 16px;flex:1}
+.evhead{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin-bottom:10px}
+.evhead h2{margin:0}
+.counts{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.cnt{font-size:13px;padding:2px 10px;border-radius:99px;background:var(--bg);color:var(--mute);white-space:nowrap}
+.cnt b{color:var(--ink);margin-left:4px;font-weight:600}.cnt.w b{color:var(--warn)}.cnt.d b{color:var(--dang)}
+.evlist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.evi{text-align:left;padding:10px 12px;min-height:0;border-radius:8px;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;gap:3px;line-height:1.35;font-size:14px}
+.evi:hover{border-color:var(--mute)}
+.evi .tm{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.evi .tt{font-weight:500;overflow-wrap:anywhere}
+.evi .ss{font-size:12px;color:var(--mute)}
+.evi .ss.on{color:var(--dang);font-weight:500}
+.evempty{font-size:14px;color:var(--mute);margin:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute);flex:none;display:inline-block}
+.dot.pk{background:var(--uv)}.dot.l1{background:var(--warn)}.dot.l2{background:var(--dang)}
+
+/* 상세 팝업 */
+dialog{width:min(960px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgb(0 0 0 / .3)}
+dialog::backdrop{background:rgb(10 14 12 / .5)}
+.dh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.dh h2{margin:0}
+.db{display:grid;grid-template-columns:290px minmax(0,1fr);height:min(560px,calc(100vh - 130px))}
+.dl{border-right:1px solid var(--line);overflow:auto;list-style:none;margin:0;padding:6px}
+.dl button{width:100%;text-align:left;border:0;background:none;padding:8px 10px;min-height:0;display:flex;gap:10px;align-items:baseline;border-radius:6px;font-size:14px;line-height:1.35}
+.dl button:hover{background:var(--bg)}
+.dl button[aria-current=true]{background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}
+.dl time{color:var(--mute);font-size:12px;flex:none}
+.dd{padding:16px 20px;overflow:auto}
+.dd h3{font-size:20px;margin:0 0 4px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lvp{font-size:12px;font-weight:500;padding:1px 10px;border-radius:99px;border:1px solid currentColor;color:var(--mute)}
+.lvp.pk{color:var(--uv)}.lvp.l1{color:var(--warn)}.lvp.l2{color:var(--dang)}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 18px;font-size:14px;margin:12px 0 14px}
+.kv dt{color:var(--mute)}.kv dd{margin:0}
+.dd h4{font-size:14px;font-weight:600;margin:14px 0 6px}
+#dchart{display:block;width:100%;height:190px}
+
+/* 경보 표시창과 보조 값 */
+.mid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.box{padding:14px 16px}
+.ann-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.ann-head h2{margin:0}
+.ann{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.win{min-height:64px;padding:8px 10px;border-radius:6px;border:1px solid var(--ok);background:var(--okbg);text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:4px;font-size:14px;line-height:1.3;color:var(--mute)}
+.win b{font-weight:500;color:var(--ink)}
+.win span{font-size:12px}
+.win.l0 span{color:var(--ok);font-weight:600}
+.win.l1{background:var(--warn);border-color:var(--warn);color:#2b1a00}
+.win.l2{background:var(--dang);border-color:var(--dang);color:#fff}
+.win.l1 b{color:#2b1a00}.win.l2 b{color:#fff}
+.win.cleared{border-color:var(--dang);border-style:dashed;background:var(--bg);color:var(--dang)}
+.win.unack{animation:blink 1s steps(1) infinite}
+.side{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-content:start}
+.mini{padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.mini .lab{font-size:14px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.mini .v{font-size:clamp(20px,2.4vw,26px);font-weight:500;line-height:1.2}
+.mini .v small{font-size:13px;color:var(--mute);margin-left:3px}
+.mini .s{font-size:12px;color:var(--mute)}
+.led{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--line)}
+.led.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.side .wide{grid-column:1/-1}
+
+/* 런 경과 띠 */
+.strip{margin-top:14px;padding:12px 16px}
+.strip .row{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px;gap:10px;flex-wrap:wrap}
+#tl{display:block;width:100%;height:178px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--mute);align-items:center}
+.strip .legend{margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:8px;border-radius:2px;display:inline-block}
+.legend i.ln{height:0;border-top:2px solid;border-radius:0;background:none!important}
+.legend i.dash{border-top-style:dashed}
+.legend i.tick{width:2px;height:12px;border-radius:0;background:var(--ink)}
+.legend i.tri{width:0;height:0;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--ink)}
+.legend i.w{background:color-mix(in srgb,var(--mute) 40%,transparent)!important;box-shadow:inset 0 0 0 1.5px var(--mute)}
+
+/* 크로마토그램 */
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 14px;margin:14px 0}
+.seg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.seg span{font-size:13px;color:var(--mute);margin-right:4px}
+.seg button{padding:0 10px}
+.ctrl .push{margin-left:auto}
+.fig{position:relative;height:clamp(460px,66vh,640px)}
+.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* 피크 표와 기록 */
+.peaks{margin-top:14px}
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;margin-top:14px}
+#log{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;font-size:14px}
+#log li{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+#log li time{flex:none;color:var(--mute)}
+#log li.l1{color:var(--warn)}#log li.l2{color:var(--dang)}#log li.clear,#log li.ack{color:var(--mute)}
+#log li.event{font-weight:500}#log li.peak{color:var(--uv)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:5px 8px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:500;border-top:0}td:first-child,th:first-child{text-align:left}
+td.st{color:var(--mute)}td.st.on{color:var(--uv);font-weight:500}
+footer{font-size:13px;color:var(--mute);margin-top:16px;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
+footer a{color:inherit}
+#err{display:none;padding:14px 16px;margin-bottom:14px;border:1px solid var(--dang);border-radius:10px;color:var(--dang)}
+
+@media(max-width:1000px){.gauges,.evlist{grid-template-columns:repeat(2,minmax(0,1fr))}.mid,.bottom{grid-template-columns:minmax(0,1fr)}.ann{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.db{grid-template-columns:minmax(0,1fr);height:auto}.dl{max-height:200px;border-right:0;border-bottom:1px solid var(--line)}.flip{--h:34px;--w:22px}.top{grid-template-columns:minmax(0,1fr)}.vessel svg{max-width:220px}.ann{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{height:520px}}
+@media(prefers-reduced-motion:reduce){.chip .pulse::after{animation:none}.win.unack,.fd .ft,.fd .fb{animation:none}.needle{transition:none}.led.on{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>FPLC 정제 실시간 모니터</h1>
+    <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span></div>
+  </div>
+  <div class="clocks">
+    <div class="clk"><div class="cap"><span>런 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="런 시작 시각"></div></div>
+    <div class="clk"><div class="cap"><span id="elCap">런 진행</span><b class="mono" id="elVol"></b></div><div class="flip" id="fElapsed" aria-label="런 진행 시간"></div></div>
+    <div class="clk"><div class="cap"><span>용출 시작</span><b class="mono" id="elutCap">대기</b></div><div class="flip" id="fElut" aria-label="용출 시작 시각"></div></div>
+  </div>
+</header>
+
+<div id="err" role="alert"></div>
+
+<div id="banner" role="alert">
+  <div class="msg" id="bannerMsg"></div>
+  <button id="ackOne" class="strong">확인</button>
+  <button id="ackAll">전체 확인</button>
+</div>
+
+<section class="top">
+  <div class="panel vessel">
+    <svg viewBox="0 0 260 444" role="img" aria-label="FPLC 유로 상태 그림">
+      <defs>
+        <linearGradient id="gSteel" x1="0" x2="1"><stop offset="0" stop-color="#7f878d"/><stop offset=".22" stop-color="#eef1f3"/><stop offset=".5" stop-color="#aeb6bc"/><stop offset=".78" stop-color="#f3f5f6"/><stop offset="1" stop-color="#737b81"/></linearGradient>
+        <linearGradient id="gPump" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b4045"/><stop offset="1" stop-color="#1c1f22"/></linearGradient>
+        <radialGradient id="gHead" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#f6f8f9"/><stop offset="1" stop-color="#959ea4"/></radialGradient>
+        <linearGradient id="gGlass" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset=".25" stop-color="#fff" stop-opacity=".6"/><stop offset=".4" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".1"/></linearGradient>
+      </defs>
+
+      <!-- 완충액 병 -->
+      <rect x="35" y="6" width="14" height="9" rx="2" fill="#1f5fb0"/><rect x="91" y="6" width="14" height="9" rx="2" fill="#b7791f"/>
+      <rect x="22" y="14" width="40" height="56" rx="7" fill="#dfe8ec" fill-opacity=".45" stroke="#9fb3bf"/>
+      <rect x="78" y="14" width="40" height="56" rx="7" fill="#dfe8ec" fill-opacity=".45" stroke="#9fb3bf"/>
+      <rect x="23.5" y="30" width="37" height="38.5" rx="5" fill="#cfe2f6"/><rect x="79.5" y="30" width="37" height="38.5" rx="5" fill="#f4d58a"/>
+      <rect x="22" y="14" width="40" height="56" rx="7" fill="url(#gGlass)"/><rect x="78" y="14" width="40" height="56" rx="7" fill="url(#gGlass)"/>
+      <text x="42" y="55" font-size="13" font-weight="600" text-anchor="middle" fill="#1b3a5c">A</text>
+      <text x="98" y="55" font-size="13" font-weight="600" text-anchor="middle" fill="#5d4a12">B</text>
+
+      <!-- 관 -->
+      <path id="pA" class="fl" d="M42 70 V150 H60"/><path id="pB" class="fl" d="M98 70 V150 H80"/>
+      <path id="pM" class="fl" d="M70 158 V224"/>
+      <path id="loop" class="fl" d="M82 186 C122 168 142 176 142 192 C142 208 122 216 82 198"/>
+      <path id="pC" class="fl" d="M70 310 V398 H150 V408"/>
+      <path id="pW" class="fl" d="M150 398 H218 V408"/>
+      <path class="fa" data-k="A" d="M42 70 V150 H60"/><path class="fa" data-k="B" d="M98 70 V150 H80"/>
+      <path class="fa" data-k="F" d="M70 158 V224"/><path class="fa" data-k="L" d="M82 186 C122 168 142 176 142 192 C142 208 122 216 82 198"/>
+      <path class="fa" data-k="F" d="M70 310 V398 H150"/><path class="fa" data-k="C" d="M150 398 V408"/><path class="fa" data-k="W" d="M150 398 H218 V408"/>
+
+      <!-- 펌프 A, B -->
+      <rect x="22" y="92" width="40" height="40" rx="6" fill="url(#gPump)"/><circle cx="42" cy="112" r="14" fill="url(#gHead)" stroke="#5f676d"/>
+      <g id="rotA"><circle cx="42" cy="103" r="3" fill="#596066"/><circle cx="34.2" cy="116.5" r="3" fill="#596066"/><circle cx="49.8" cy="116.5" r="3" fill="#596066"/><circle cx="42" cy="112" r="2.2" fill="#3b4045"/></g>
+      <rect x="78" y="92" width="40" height="40" rx="6" fill="url(#gPump)"/><circle cx="98" cy="112" r="14" fill="url(#gHead)" stroke="#5f676d"/>
+      <g id="rotB"><circle cx="98" cy="103" r="3" fill="#596066"/><circle cx="90.2" cy="116.5" r="3" fill="#596066"/><circle cx="105.8" cy="116.5" r="3" fill="#596066"/><circle cx="98" cy="112" r="2.2" fill="#3b4045"/></g>
+
+      <!-- 믹서 -->
+      <rect x="58" y="141" width="24" height="18" rx="5" fill="url(#gSteel)" stroke="#6b7379"/>
+
+      <!-- 주입 밸브 -->
+      <circle cx="70" cy="192" r="15" fill="#22262a"/><circle cx="70" cy="192" r="10.5" fill="#3a4046"/>
+      <g id="rotV"><path d="M70 183 V201" stroke="#cfd6da" stroke-width="2.6" stroke-linecap="round"/></g>
+      <circle id="ledV" cx="70" cy="192" r="2.6" fill="#4a5056"/>
+
+      <!-- 컬럼 -->
+      <rect x="60" y="222" width="20" height="7" rx="2" fill="#2b2f33"/><rect x="60" y="305" width="20" height="7" rx="2" fill="#2b2f33"/>
+      <rect x="54" y="228" width="32" height="78" rx="4" fill="#eef3f5" fill-opacity=".5" stroke="#9fb0ba" stroke-width="1.5" id="shell"/>
+      <rect id="colLiq" x="56.5" y="230.5" width="27" height="73" rx="2.5" fill="#cfe2f6"/>
+      <rect id="colBand" x="56.5" y="230.5" width="27" height="0" rx="2.5" fill="#8a5a2b" fill-opacity=".55"/>
+      <rect x="54" y="228" width="32" height="78" rx="4" fill="url(#gGlass)"/>
+
+      <!-- UV 검출기와 전도도 셀 -->
+      <rect x="48" y="326" width="44" height="24" rx="5" fill="url(#gPump)"/>
+      <circle id="uvGlow" cx="70" cy="338" r="9" fill="#7c5cff" opacity=".1"/><circle cx="70" cy="338" r="3.5" fill="#b9a7ff"/>
+      <rect x="54" y="362" width="32" height="18" rx="5" fill="url(#gSteel)" stroke="#6b7379"/>
+
+      <!-- 분획 시험관과 폐액통 -->
+      <path d="M143 410 V432 Q143 440 150 440 Q157 440 157 432 V410" fill="#eef3f5" fill-opacity=".5" stroke="#9fb0ba" stroke-width="1.5"/>
+      <path id="tubeLiq" d="M144.5 432 Q144.5 438.5 150 438.5 Q155.5 438.5 155.5 432 Z" fill="#cfe2f6"/>
+      <rect x="204" y="410" width="28" height="30" rx="5" fill="#dfe8ec" fill-opacity=".45" stroke="#9fb3bf"/>
+      <circle id="drop" cx="150" cy="412" r="2" fill="#8fb8e0" opacity="0"/>
+
+      <!-- 값 -->
+      <text class="l" x="150" y="104">유량</text><text class="v" x="150" y="119" id="dFlow">–</text>
+      <text class="l" x="150" y="142">농도 B</text><text class="v" x="150" y="157" id="dB">–</text>
+      <text class="l" x="150" y="186">주입 밸브</text><text class="v" x="150" y="201" id="dValve">–</text>
+      <text class="l" x="100" y="258">컬럼 압력</text><text class="v" x="100" y="273" id="dP">–</text>
+      <text class="l" x="100" y="290" id="dCV">–</text>
+      <text class="l" x="102" y="334">UV 280</text><text class="v" x="102" y="349" id="dUV">–</text>
+      <text class="l" x="102" y="367">전도도</text><text class="v" x="102" y="382" id="dCond">–</text>
+      <text class="v" x="164" y="432" id="dFrac">–</text>
+      <text class="l" x="218" y="429" text-anchor="middle">폐액</text>
+    </svg>
+    <div class="phase" id="phase">–</div>
+    <div class="chip" id="stChip" aria-live="polite"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
+  </div>
+  <div class="right">
+    <div class="gauges" id="gauges"></div>
+    <div class="panel evsum">
+      <div class="evhead"><h2>이벤트 요약</h2><div class="counts" id="evCounts"></div><button id="evAll">전체 내역</button></div>
+      <div class="evlist" id="evList"></div>
+    </div>
+  </div>
+</section>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dh"><h2 id="dlgTitle">이벤트 상세 내역</h2><button id="dlgClose" aria-label="닫기">닫기</button></div>
+  <div class="db"><ul class="dl" id="dlgList"></ul><div class="dd" id="dlgDetail"></div></div>
+</dialog>
+
+<section class="mid">
+  <div class="panel box">
+    <div class="ann-head"><h2>경보 표시창</h2><button id="ackAll2">전체 확인</button></div>
+    <div class="ann" id="ann"></div>
+  </div>
+  <div class="side">
+    <div class="panel mini"><div class="lab">농도 B</div><div class="v mono"><span id="vB">–</span><small>%</small></div><div class="s" id="sB">이미다졸 –</div></div>
+    <div class="panel mini"><div class="lab">pH</div><div class="v mono" id="vpH">–</div><div class="s" id="spH">–</div></div>
+    <div class="panel mini"><div class="lab"><span class="led" id="dFr"></span>분획</div><div class="v mono" id="vFr">–</div><div class="s" id="sFr">–</div></div>
+    <div class="panel mini wide"><div class="lab">누적 부피</div><div class="v mono" style="font-size:18px"><span id="vVol">–</span></div><div class="s" id="sVol">–</div></div>
+  </div>
+</section>
+
+<section class="panel strip">
+  <div class="row"><span>런 경과와 변수별 경보</span><span id="tlTxt"></span></div>
+  <canvas id="tl" aria-label="런 경과 띠: 단계와 변수별 경보 구간"></canvas>
+  <div class="legend" id="tlLegend"></div>
+</section>
+
+<div class="panel ctrl">
+  <div class="seg" id="wins"><span>표시 구간</span></div>
+  <div class="legend" id="chLegend"></div>
+  <button id="sound" class="push" aria-pressed="false">경보음 꺼짐</button>
+</div>
+<div class="panel fig"><canvas id="trend" aria-label="실시간 크로마토그램"></canvas></div>
+
+<section class="panel box peaks">
+  <h2>피크</h2>
+  <div class="scroll"><table><thead><tr><th>피크</th><th>정점 min</th><th>정점 mL</th><th>높이 mAU</th><th>면적 mAU·mL</th><th>정점 %B</th><th>이미다졸 mM</th><th>분획</th><th>상태</th></tr></thead><tbody id="pkRows"></tbody></table></div>
+</section>
+
+<section class="bottom">
+  <div class="panel box"><h2>런 로그와 경보 기록</h2><ul id="log"></ul></div>
+  <div class="panel box"><h2>최근 데이터</h2>
+    <div class="scroll"><table><thead><tr><th>경과</th><th>mL</th><th>UV mAU</th><th>mS/cm</th><th>%B</th><th>mL/min</th><th>MPa</th><th>pH</th><th>분획</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</section>
+<footer><span>과거 런 기록을 런 시작 시각부터 흐른 시간에 맞춰 실시간처럼 보여 줍니다. 아직 오지 않은 시간의 값과 피크, 경보는 보이지 않습니다.</span><a href="admin.html">관리자</a></footer>
+</div>
+
+<script src="common.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+const { hms, esc, CH, PHASES } = FP;
+addEventListener('error', e => { $('err').style.display = 'block'; $('err').textContent = '화면을 그리다 오류가 났습니다. ' + e.message; });
+let D = null, E = null, META = null, S = FP.settings(), TH = FP.thresholds();
+let lastL = null, INC = [], sel = null, EL0 = -1, SP = NaN;
+let cur = -1, prevLv = {}, unack = new Map(), acks = [], win = 0, soundOn = false, lastBeep = 0, cycle = -1, clk = null;
+let RANGE = {};
+try { soundOn = localStorage.getItem('fp.sound') === '1'; const w = localStorage.getItem('fp.win'); if (w !== null) win = +w || 0; } catch {}
+
+const probe = document.createElement('span');
+probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden';
+document.body.appendChild(probe);
+const css = n => { probe.style.color = ''; probe.style.color = `var(${n})`; return getComputedStyle(probe).color; };
+const LVTXT = ['정상', '주의', '위험'];
+const fx = (v, d) => isNaN(v) ? '–' : v.toFixed(d);
+const mins = s => (s / 60).toFixed(2);
+const imid = b => TH.imA + (TH.imB - TH.imA) * b / 100;
+
+/* ---------- 계기판 ---------- */
+const LOOPS = [
+  { k: 'uv', rules: ['uv', 'base', 'miss'], td: 0 }, { k: 'cond', rules: ['grad'], td: 0 },
+  { k: 'P', rules: ['Phi', 'Prise', 'Plo'], td: 2 }, { k: 'flow', rules: ['flow'], td: 1 }];
+const CX = 100, CY = 100, R = 76, A0 = -120, A1 = 120;
+const ang = f => A0 + (A1 - A0) * Math.max(0, Math.min(1, f));
+const pt = (a, r) => { const t = a * Math.PI / 180; return [CX + r * Math.sin(t), CY - r * Math.cos(t)]; };
+const arc = (a, b, r) => { const [x0, y0] = pt(a, r), [x1, y1] = pt(b, r); return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${b - a > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+$('gauges').innerHTML = LOOPS.map(L => { const c = CH[L.k]; return `<div class="panel gauge" id="g_${L.k}">
+  <div class="lab"><span>${c.name}</span><span class="badge" id="b_${L.k}">정상</span></div>
+  <svg viewBox="0 0 200 162" role="img" aria-label="${c.name} 계기판">
+    <path d="${arc(A0, A1, R)}" fill="none" stroke="var(--line)" stroke-width="12"/>
+    <g id="band_${L.k}"></g><g id="tick_${L.k}"></g>
+    <g class="needle" id="n_${L.k}" style="transform-origin:${CX}px ${CY}px"><path d="M${CX - 3} ${CY} L${CX} ${CY - R + 6} L${CX + 3} ${CY} Z" fill="var(${c.c})"/></g>
+    <circle cx="${CX}" cy="${CY}" r="7" fill="var(--panel)" stroke="var(${c.c})" stroke-width="3"/>
+  </svg>
+  <div class="val mono" style="color:var(${c.c})"><span id="v_${L.k}">–</span><small>${c.unit}</small></div>
+  <div class="sp mono" id="s_${L.k}">–</div></div>`; }).join('');
+
+function scale(L) {
+  if (L.k === 'uv') return [0, TH.UV_dang * 1.1];
+  if (L.k === 'cond') { const c0 = Math.round(D.cond[0]); return isNaN(c0) ? [0, 100] : [c0 - 5, c0 + 15]; }
+  if (L.k === 'P') return [0, TH.P_dang * 1.2];
+  return [0, (SP > 0 ? SP : 1) * 2];
+}
+function zones(L) {   // [from, to, level]
+  const t = TH;
+  if (L.k === 'uv') return [[-1e9, t.UV_warn, 0], [t.UV_warn, t.UV_dang, 1], [t.UV_dang, 1e9, 2]];
+  if (L.k === 'P') return [[-1e9, t.P_low, 2], [t.P_low, t.P_warn, 0], [t.P_warn, t.P_dang, 1], [t.P_dang, 1e9, 2]];
+  if (L.k === 'flow' && SP > 0) { const w = SP * t.flow_warn / 100, d = SP * t.flow_dang / 100; return [[-1e9, SP - d, 2], [SP - d, SP - w, 1], [SP - w, SP + w, 0], [SP + w, SP + d, 1], [SP + d, 1e9, 2]]; }
+  return [];
+}
+function drawDials() {
+  for (const L of LOOPS) {
+    const [lo, hi] = scale(L), f = v => (v - lo) / (hi - lo), col = ['var(--ok)', 'var(--warn)', 'var(--dang)'];
+    $('band_' + L.k).innerHTML = zones(L).map(([a, b, lv]) => {
+      const fa = Math.max(0, f(a)), fb = Math.min(1, f(b)); if (fb <= fa) return '';
+      return `<path d="${arc(ang(fa), ang(fb), R)}" fill="none" stroke="${col[lv]}" stroke-width="12" opacity="${lv ? .9 : .35}"/>`;
+    }).join('');
+    let tk = '';
+    for (let k = 0; k <= 10; k++) {
+      const a = ang(k / 10), [x0, y0] = pt(a, R - 9), [x1, y1] = pt(a, R - (k % 5 ? 14 : 19));
+      tk += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--mute)" stroke-width="${k % 5 ? 1 : 1.6}"/>`;
+    }
+    for (const k of [0, 0.5, 1]) {
+      const [x, y] = k === 0.5 ? pt(0, R + 12) : pt(ang(k), R);
+      tk += `<text x="${x.toFixed(1)}" y="${(k === 0.5 ? y - 2 : y + 18).toFixed(1)}" font-size="11" text-anchor="middle" fill="var(--mute)" font-family="IBM Plex Mono, monospace">${(lo + (hi - lo) * k).toFixed(L.td)}</text>`;
+    }
+    $('tick_' + L.k).innerHTML = tk;
+  }
+}
+
+/* ---------- 경보 표시창 ---------- */
+function buildAnn() {
+  $('ann').innerHTML = E.rules.map(r => `<button class="win" id="w_${r.id}" data-r="${r.id}"><b>${r.name}</b><span id="ws_${r.id}">정상</span></button>`).join('');
+}
+const ruleOf = id => E.rules.find(r => r.id === id);
+const ruleName = id => ruleOf(id).name;
+
+/* ---------- 데이터 준비 ---------- */
+let SENS = null;
+function prepare() {
+  E = FP.evaluate(D, TH);
+  SENS = ruleOf('sensor').lv;
+  SP = TH.flow_sp > 0 ? TH.flow_sp : D.flowSP;
+  const el = PHASES.findIndex(p => p.id === 'elute'); EL0 = D.phase.indexOf(el);
+  // 변화마다 지속 시간을 붙인다.
+  const since = {};
+  for (const c of E.changes) { if (c.from === 0) since[c.rule] = c.i; if (c.to === 0) c.dur = D.t[c.i] - D.t[since[c.rule] ?? c.i]; }
+  // 피크 이름: 알아본 시점의 단계로 정한다.
+  let ne = 0;
+  for (const p of E.peaks) {
+    const id = PHASES[D.phase[p.det]].id;
+    p.name = id === 'load' || id === 'wash' ? '통과액 피크' : id === 'elute' ? `용출 피크 ${++ne}` : id === 'strip' ? '스트립 피크' : '피크';
+  }
+  // 보조 그래프 축: 센서 이상값을 뺀 범위
+  RANGE = {};
+  for (const k of ['cond', 'P', 'flow', 'pH']) {
+    let mn = Infinity, mx = -Infinity; const a = D[k];
+    for (let i = 0; i < D.n; i++) { if (SENS[i]) continue; const v = a[i]; if (!isNaN(v)) { if (v < mn) mn = v; if (v > mx) mx = v; } }
+    if (!isFinite(mn)) { mn = 0; mx = 1; }
+    const pad = Math.max((mx - mn) * 0.1, k === 'P' ? 0.005 : k === 'flow' ? 0.01 : 0.02);
+    RANGE[k] = [mn - pad, mx + pad];
+  }
+  buildAnn(); drawDials();
+  cur = -1; prevLv = {}; unack = new Map(); acks = []; cycle = -1;
+}
+
+/* 피크를 지금 시점에서 본 모습 */
+function pkView(p, i) {
+  const done = p.endDet >= 0 && p.endDet <= i, conf = p.conf >= 0 && p.conf <= i, b = done ? p.end : i;
+  let ap = p.apex; if (!conf) { ap = p.start; for (let k = p.start; k <= i; k++) if (D.uv[k] > D.uv[ap]) ap = k; }
+  let f0 = 0, f1 = 0; for (let k = p.start; k <= b; k++) if (D.frac[k] > 0) { if (!f0) f0 = D.frac[k]; f1 = D.frac[k]; }
+  return { done, conf, ap, b, area: D.cumA[b] - D.cumA[p.start], frac: f0 ? (f0 === f1 ? 'F' + f0 : `F${f0}–F${f1}`) : '–' };
+}
+
+/* ---------- 확인 ---------- */
+function ack(ids) {
+  for (const id of ids) if (unack.has(id)) { unack.delete(id); acks.push({ i: cur, rule: id }); }
+  render(cur, true);
+}
+$('ackAll').onclick = $('ackAll2').onclick = () => ack([...unack.keys()]);
+$('ackOne').onclick = () => { const t = topUnack(); if (t) ack([t[0]]); };
+$('ann').onclick = e => { const b = e.target.closest('.win'); if (b) ack([b.dataset.r]); };
+function topUnack() { return [...unack.entries()].sort((a, b) => b[1].level - a[1].level || b[1].i - a[1].i)[0]; }
+
+/* ---------- 경보음 ---------- */
+let AC = null;
+function beep(level) {
+  if (!soundOn) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const n = level === 2 ? 3 : 1;
+    for (let k = 0; k < n; k++) {
+      const o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + k * 0.28;
+      o.frequency.value = level === 2 ? 880 : 660; o.connect(g); g.connect(AC.destination);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      o.start(t0); o.stop(t0 + 0.22);
+    }
+  } catch {}
+}
+const markSound = () => { $('sound').textContent = soundOn ? '경보음 켜짐' : '경보음 꺼짐'; $('sound').classList.toggle('on', soundOn); $('sound').setAttribute('aria-pressed', soundOn); };
+$('sound').onclick = () => { soundOn = !soundOn; try { localStorage.setItem('fp.sound', soundOn ? '1' : '0'); } catch {} markSound(); if (soundOn) beep(1); };
+markSound();
+
+/* ---------- 화면 갱신 ---------- */
+const mixc = (a, b, f) => `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(',')})`;
+const C_A = [207, 226, 246], C_B = [244, 213, 138];
+function render(i, force) {
+  if (!D || (i === cur && !force)) return;
+  if (i < cur) { prevLv = {}; unack = new Map(); acks = []; }   // 반복 재생으로 처음부터 다시
+  cur = i;
+  // 경보 상태
+  let worst = 0, newLv = 0;
+  const lvOf = {};
+  for (const r of E.rules) {
+    const v = r.lv[i], p = prevLv[r.id] || 0; lvOf[r.id] = v;
+    if (v > p) { unack.set(r.id, { level: v, i }); newLv = Math.max(newLv, v); }
+    else if (v > 0 && unack.has(r.id)) unack.get(r.id).level = Math.max(unack.get(r.id).level, v);
+    worst = Math.max(worst, v);
+    prevLv[r.id] = v;
+  }
+  if (newLv) { beep(newLv); lastBeep = Date.now(); }
+  else if ([...unack.values()].some(u => u.level === 2) && Date.now() - lastBeep > 15000) { beep(2); lastBeep = Date.now(); }
+  for (const r of E.rules) {
+    const w = $('w_' + r.id), v = lvOf[r.id], u = unack.has(r.id);
+    w.className = 'win' + (v ? ' l' + v : u ? ' cleared' : ' l0') + (u ? ' unack' : '');
+    $('ws_' + r.id).textContent = v ? LVTXT[v] + (u ? ' · 미확인' : ' · 확인함') : u ? '해제 · 미확인' : '정상';
+    w.setAttribute('aria-label', r.name + ' ' + $('ws_' + r.id).textContent + (u ? ', 눌러서 확인' : ''));
+  }
+  // 상태 칩
+  const anyUn = unack.size > 0;
+  $('stChip').className = 'chip' + (worst === 2 ? ' d' : worst === 1 ? ' w' : '');
+  $('stTxt').textContent = ['정상 운전', '주의', '위험'][worst];
+  const nAct = Object.values(lvOf).filter(Boolean).length;
+  $('stSub').textContent = nAct ? `활성 경보 ${nAct}건` + (anyUn ? `, 미확인 ${unack.size}건` : '') : anyUn ? `해제됐으나 미확인 ${unack.size}건` : '경보 없음';
+  // 배너
+  const top = topUnack();
+  if (top) {
+    const [id, u] = top, v = lvOf[id];
+    $('banner').className = 'show' + (u.level === 2 ? '' : ' w');
+    $('bannerMsg').innerHTML = `${LVTXT[u.level]} · ${esc(ruleName(id))} ${v ? '발생 중' : '해제됨'}<small>${hms(D.t[u.i])} 발생${unack.size > 1 ? `, 미확인 경보 ${unack.size}건` : ''}</small>`;
+  } else $('banner').className = '';
+  // 계기판
+  const bad = SENS[i] > 0, uv = D.uv[i], B = D.B[i], P = D.P[i], fl = D.flow[i], cond = D.cond[i], pH = D.pH[i], ph = PHASES[D.phase[i]];
+  for (const L of LOOPS) {
+    const v = D[L.k][i], [lo, hi] = scale(L);
+    $('n_' + L.k).style.transform = `rotate(${ang(isNaN(v) ? 0 : (v - lo) / (hi - lo))}deg)`;
+    $('v_' + L.k).textContent = fx(v, CH[L.k].d);
+    const lv = Math.max(bad ? 2 : 0, ...L.rules.map(id => lvOf[id]));
+    $('g_' + L.k).className = 'panel gauge' + (lv ? ' l' + lv : '');
+    $('b_' + L.k).textContent = bad ? '센서 이상' : LVTXT[lv];
+  }
+  $('s_uv').textContent = `주의 ${TH.UV_warn} mAU 이상`;
+  $('s_cond').textContent = isNaN(cond) ? '–' : `시작값 대비 ${(cond - D.cond[0] >= 0 ? '+' : '') + (cond - D.cond[0]).toFixed(2)}`;
+  $('s_P').textContent = `상한 ${TH.P_dang.toFixed(2)} MPa`;
+  $('s_flow').textContent = SP > 0 && !isNaN(fl) ? `설정 ${SP.toFixed(2)}  편차 ${((fl - SP) / SP * 100 >= 0 ? '+' : '') + ((fl - SP) / SP * 100).toFixed(1)} %` : '설정 유량 없음';
+  // 보조 값
+  $('vB').textContent = fx(B, 1); $('sB').textContent = isNaN(B) ? '이미다졸 –' : `이미다졸 약 ${imid(B).toFixed(0)} mM`;
+  $('vpH').textContent = fx(pH, 2); $('spH').textContent = `정상 범위 ${TH.pH_lo}–${TH.pH_hi}`;
+  const fr = D.frac[i];
+  $('vFr').textContent = fr ? 'F' + fr : '–'; $('sFr').textContent = fr ? '수집 중' : '폐액으로 배출'; $('dFr').classList.toggle('on', fr > 0);
+  $('vVol').textContent = isNaN(D.vol[i]) ? '–' : `${D.vol[i].toFixed(2)} mL   ${(D.vol[i] / TH.cv).toFixed(1)} CV`;
+  $('sVol').textContent = `${ph.name} 단계 ${hms(D.t[i] - D.t[D.phaseStart[i]])} 경과` + (isNaN(D.vol[i]) ? '' : `, ${((D.vol[i] - D.vol[D.phaseStart[i]]) / TH.cv).toFixed(1)} CV`);
+  $('elVol').textContent = isNaN(D.vol[i]) ? '' : D.vol[i].toFixed(1) + ' mL';
+  // 유로 그림
+  const inj = ph.id === 'load';
+  $('dFlow').textContent = fx(fl, 2) + ' mL/min'; $('dB').textContent = fx(B, 1) + ' %';
+  $('dValve').textContent = inj ? 'Inject' : 'Load';
+  $('rotV').setAttribute('transform', `rotate(${inj ? 60 : 0} 70 192)`); $('ledV').setAttribute('fill', inj ? '#3ddc84' : '#4a5056');
+  $('loop').style.stroke = inj ? '#c9a36a' : '';
+  $('dP').textContent = fx(P, 3) + ' MPa'; $('dCV').textContent = `${TH.cv} mL 컬럼`;
+  $('dUV').textContent = fx(uv, 1) + ' mAU'; $('dCond').textContent = fx(cond, 2) + ' mS/cm';
+  $('dFrac').textContent = fr ? 'F' + fr : '';
+  const buf = mixc(C_A, C_B, Math.max(0, Math.min(1, (B || 0) / 100)));
+  $('colLiq').setAttribute('fill', buf);
+  // 컬럼 속 띠: UV 가 높을수록 짙다 (흡광도의 로그 눈금)
+  const g = Math.max(0, Math.min(1, Math.log10(Math.max(1, uv)) / 3.4));
+  $('colBand').setAttribute('height', (73 * (inj ? Math.min(1, (D.t[i] - D.t[D.phaseStart[i]]) / 120) : 1)).toFixed(1));
+  $('colBand').setAttribute('fill-opacity', (inj ? 0.5 : g * 0.6).toFixed(2));
+  $('uvGlow').setAttribute('opacity', (0.1 + 0.8 * g).toFixed(2)); $('uvGlow').setAttribute('r', (7 + 6 * g).toFixed(1));
+  $('tubeLiq').setAttribute('fill', buf); $('tubeLiq').setAttribute('opacity', fr ? 1 : 0);
+  $('shell').setAttribute('stroke', worst === 2 ? css('--dang') : worst === 1 ? css('--warn') : '#9fb0ba');
+  // 단계
+  let last = ''; for (let k = D.events.length - 1; k >= 0; k--) if (D.events[k].i <= i) { last = hms(D.t[D.events[k].i]) + ' ' + D.events[k].text; break; }
+  $('phase').innerHTML = `<b>${ph.name}</b><br>${esc(last)}`;
+  renderLog(i); renderRows(i); renderPeaks(i); drawTimeline(i); drawChart(i); renderEvents(i);
+}
+
+function renderLog(i) {
+  const items = [];
+  for (const e of D.events) if (e.i <= i) items.push({ i: e.i, cls: 'event', text: e.text });
+  for (const p of E.peaks) if (p.conf >= 0 && p.conf <= i) items.push({ i: p.conf, cls: 'peak', text: `${p.name} 정점 ${mins(D.t[p.apex])} min, ${D.uv[p.apex].toFixed(0)} mAU` });
+  for (const c of E.changes) {
+    if (c.i > i) break;
+    const nm = ruleName(c.rule);
+    if (c.to > c.from) items.push({ i: c.i, cls: 'l' + c.to, text: `${nm} ${LVTXT[c.to]}${c.from ? ' (상향)' : ' 발생'}` });
+    else if (c.to === 0) items.push({ i: c.i, cls: 'clear', text: `${nm} 해제, 지속 ${hms(c.dur || 0)}` });
+    else items.push({ i: c.i, cls: 'l' + c.to, text: `${nm} ${LVTXT[c.to]}로 완화` });
+  }
+  for (const a of acks) items.push({ i: a.i, cls: 'ack', text: `운전자 확인: ${ruleName(a.rule)}` });
+  items.sort((a, b) => b.i - a.i);
+  $('log').innerHTML = items.slice(0, 60).map(e => `<li class="${e.cls}"><time class="mono">${hms(D.t[e.i])}</time><span>${esc(e.text)}</span></li>`).join('') || '<li><span>아직 기록이 없습니다.</span></li>';
+}
+function renderRows(i) {
+  let s = '';
+  for (let k = i; k > i - 10 && k >= 0; k--) s += `<tr class="mono"><td>${hms(D.t[k])}</td><td>${fx(D.vol[k], 2)}</td><td>${fx(D.uv[k], 1)}</td><td>${fx(D.cond[k], 2)}</td><td>${fx(D.B[k], 1)}</td><td>${fx(D.flow[k], 3)}</td><td>${fx(D.P[k], 3)}</td><td>${fx(D.pH[k], 2)}</td><td>${D.frac[k] ? 'F' + D.frac[k] : '–'}</td></tr>`;
+  $('rows').innerHTML = s;
+}
+function renderPeaks(i) {
+  const list = E.peaks.filter(p => p.det <= i);
+  $('pkRows').innerHTML = list.length ? list.map(p => {
+    const v = pkView(p, i), b = D.B[v.ap];
+    return `<tr><td>${p.name}</td><td class="mono">${v.conf ? mins(D.t[v.ap]) : '–'}</td><td class="mono">${v.conf ? fx(D.vol[v.ap], 2) : '–'}</td><td class="mono">${D.uv[v.ap].toFixed(0)}</td><td class="mono">${v.area.toFixed(0)}</td><td class="mono">${v.conf ? fx(b, 1) : '–'}</td><td class="mono">${v.conf && !isNaN(b) ? imid(b).toFixed(0) : '–'}</td><td class="mono">${v.frac}</td><td class="st${v.done ? '' : ' on'}">${v.done ? '끝남' : v.conf ? '내려가는 중' : '올라가는 중'}</td></tr>`;
+  }).join('') : `<tr><td colspan="9" style="text-align:left;color:var(--mute)">UV 가 ${TH.pk_min} mAU 를 넘으면 피크로 기록합니다.</td></tr>`;
+}
+
+/* ---------- 캔버스 공통 ---------- */
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, r.width, r.height);
+  return [c, r.width, r.height];
+}
+/* 단계 띠: a 행부터 b 행까지 지나간 단계를 색으로 칠하고 자리가 되면 이름을 쓴다. */
+function phaseBar(c, a, b, X, y, h) {
+  c.font = '500 11px "IBM Plex Sans KR", sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'center';
+  let s = a;
+  for (let k = a + 1; k <= b + 1; k++) {
+    if (k <= b && D.phase[k] === D.phase[s]) continue;
+    const e = Math.min(k, b), x0 = X(D.t[s]), x1 = X(D.t[e]), p = PHASES[D.phase[s]];
+    c.fillStyle = p.col; c.fillRect(x0, y, Math.max(1, x1 - x0), h);
+    if (x1 - x0 > c.measureText(p.name).width + 10) { c.fillStyle = '#10161a'; c.fillText(p.name, (x0 + x1) / 2, y + h / 2 + 1); }
+    s = k;
+  }
+}
+
+/* 런 경과 띠: 지나간 단계와 피크 정점, 그리고 변수별 줄에 경보 구간을 칠한다. */
+const LANES = [
+  { name: '압력', c: '--P', rules: ['Phi', 'Prise', 'Plo'] }, { name: '유량', c: '--flow', rules: ['flow'] }, { name: 'UV', c: '--uv', rules: ['uv', 'base'] },
+  { name: '구배', c: '--cond', rules: ['grad'] }, { name: 'pH', c: '--pH', rules: ['pH'] }, { name: '수집', c: '--B', rules: ['miss'] }, { name: '센서', c: '--sens', rules: ['sensor'] }];
+$('tlLegend').innerHTML = '<span><i class="tri"></i>피크 정점</span>' + LANES.map(l => `<span><i style="background:var(${l.c})"></i>${l.name}</span>`).join('')
+  + '<span><i style="background:var(--mute)"></i>위험</span><span><i class="w" style="background:var(--mute)"></i>주의</span>';
+function drawTimeline(i) {
+  const [c, W, H] = fit($('tl')), P = D.period, now = D.t[i];
+  const Lm = 44, pw = W - Lm - 2, X = t => Lm + pw * t / P, barY = 12, barH = 16, laneY = 40, laneH = 11, laneG = 6;
+  c.fillStyle = css('--line'); c.fillRect(Lm, barY, pw, barH);
+  phaseBar(c, 0, i, X, barY, barH);
+  c.font = '500 12px "IBM Plex Sans KR", sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'right';
+  LANES.forEach((l, k) => { const y = laneY + k * (laneH + laneG); c.fillStyle = css('--line'); c.globalAlpha = .45; c.fillRect(Lm, y, pw, laneH); c.globalAlpha = 1; c.fillStyle = css(l.c); c.fillText(l.name, Lm - 6, y + laneH / 2 + 1); });
+  const ink = css('--ink');
+  // 피크 정점
+  for (const p of E.peaks) if (p.conf >= 0 && p.conf <= i) { const x = X(D.t[p.apex]); c.fillStyle = ink; c.beginPath(); c.moveTo(x - 4.5, barY - 9); c.lineTo(x + 4.5, barY - 9); c.lineTo(x, barY - 1); c.fill(); }
+  // 경보 구간: 단계가 바뀔 때마다 끊어서 칠한다 (위험 진하게, 주의 옅게)
+  const laneOf = {}; LANES.forEach((l, k) => l.rules.forEach(r => laneOf[r] = k));
+  const seg = (rule, a, b, lv) => { const k = laneOf[rule], y = laneY + k * (laneH + laneG); const col = css(LANES[k].c), x = X(D.t[a]), w = Math.max(3, X(D.t[b]) - x); c.fillStyle = col; c.globalAlpha = lv === 2 ? 1 : .4; c.fillRect(x, y, w, laneH); c.globalAlpha = 1; if (lv === 1) { c.strokeStyle = col; c.lineWidth = 1.5; c.strokeRect(x + .75, y + .75, w - 1.5, laneH - 1.5); } };
+  const open = {};
+  for (const ch of E.changes) {
+    if (ch.i > i) break;
+    if (open[ch.rule]) seg(ch.rule, open[ch.rule].i, ch.i, open[ch.rule].lv);
+    if (ch.to > 0) open[ch.rule] = { i: ch.i, lv: ch.to }; else delete open[ch.rule];
+  }
+  for (const r in open) seg(r, open[r].i, i, open[r].lv);
+  // 현재 위치
+  const xn = X(now), yb = laneY + LANES.length * (laneH + laneG) - laneG;
+  c.fillStyle = ink; c.globalAlpha = .6; c.fillRect(xn - .5, barY - 2, 1, yb - barY + 2); c.globalAlpha = 1;
+  // 시간 눈금
+  c.fillStyle = css('--mute'); c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'bottom';
+  const pm = P / 60, step = [1, 2, 5, 10, 15, 30, 60, 120].find(s => pm / s <= (W < 520 ? 6 : 12)) || 240;
+  for (let t = 0; t <= pm + 1e-6; t += step) { c.textAlign = t === 0 ? 'left' : t + step > pm ? 'right' : 'center'; c.fillText(t + ' min', X(t * 60), H); }
+  const pk = E.peaks.filter(p => p.det <= i).length, nal = E.changes.filter(ch => ch.i <= i && ch.from === 0).length;
+  $('tlTxt').textContent = `${mins(now)} min / ${pm.toFixed(0)} min, 피크 ${pk}개, 경보 ${nal}건`;
+}
+
+/* 크로마토그램: 지나간 구간만 그린다. 위 칸은 UV·농도 B·전도도, 아래 세 칸은 압력·유량·pH. */
+const SUBS = [{ k: 'P', rules: ['Phi', 'Prise', 'Plo'], d: 2 }, { k: 'flow', rules: ['flow'], d: 2 }, { k: 'pH', rules: ['pH'], d: 2 }];
+const nice = (hi, n) => { const raw = hi / n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
+function drawChart(i) {
+  const [ctx, W, H] = fit($('trend'));
+  const narrow = W < 520, Lm = narrow ? 44 : 60, Rm = narrow ? 34 : 44, top = 10, bottom = 26, gap = 10;
+  const sh = Math.max(50, Math.min(84, H * 0.115)), mh = H - top - bottom - 3 * (sh + gap), pw = W - Lm - Rm;
+  const tNow = D.t[i], span = win || D.period, t0 = win ? tNow - win : 0, X = t => Lm + (t - t0) / span * pw;
+  const i0 = FP.indexAt(D, Math.max(0, t0));
+  const ink = css('--ink'), mute = css('--mute'), line = css('--line'), cw = css('--warn'), cd = css('--dang'), panel = css('--panel');
+  const shade = (ids, y, h) => {
+    for (const id of ids) { const lv = ruleOf(id).lv; let a = -1;
+      for (let s = i0; s <= i + 1; s++) { const v = s <= i ? lv[s] : 0;
+        if (a >= 0 && v !== lv[a]) { ctx.fillStyle = lv[a] === 2 ? cd : cw; ctx.globalAlpha = .14; ctx.fillRect(X(D.t[a]), y, Math.max(1.5, X(D.t[s - 1]) - X(D.t[a])), h); ctx.globalAlpha = 1; a = -1; }
+        if (a < 0 && v) a = s; } }
+  };
+  const trace = (arr, Y, color, width, dash, alpha) => {
+    ctx.save(); if (dash) ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha || 1; ctx.lineJoin = 'round'; ctx.beginPath();
+    let pen = false;
+    for (let s = i0; s <= i; s++) { const v = arr[s]; if (isNaN(v) || SENS[s]) { pen = false; continue; } const x = X(D.t[s]), y = Y(v); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; }
+    ctx.stroke(); ctx.restore();
+  };
+  const label = (txt, col, x, y) => { ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '600 12px "IBM Plex Sans KR", sans-serif'; const lw = ctx.measureText(txt).width; ctx.fillStyle = panel; ctx.globalAlpha = .85; ctx.fillRect(x - 3, y - 9, lw + 7, 18); ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.fillText(txt, x, y); };
+
+  /* 위 칸 */
+  const phH = 16, y0 = top + phH + 4, ph = mh - phH - 4;
+  phaseBar(ctx, i0, i, X, top, phH);
+  let mx = 0; for (let s = i0; s <= i; s++) if (!SENS[s] && D.uv[s] > mx) mx = D.uv[s];
+  const stp = nice(Math.max(100, mx * 1.12), 4), hi = Math.ceil(Math.max(100, mx * 1.12) / stp) * stp, lo = -hi * 0.04;
+  const Yu = v => y0 + ph - (v - lo) / (hi - lo) * ph, Yb = v => y0 + ph - (v * (hi / 100) - lo) / (hi - lo) * ph;
+  const [cl, ch] = RANGE.cond, Yc = v => y0 + ph * 0.96 - (v - cl) / (ch - cl) * ph * 0.92;
+  shade(['uv', 'base', 'miss'], y0, ph);
+  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.strokeRect(Lm + .5, y0 + .5, pw, ph);
+  ctx.font = '12px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+  const cB = css('--B'), cU = css('--uv'), cC = css('--cond');
+  for (let g = 0; g <= hi + 1e-6; g += stp) { const y = Yu(g);
+    ctx.strokeStyle = line; ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(Lm, y + .5); ctx.lineTo(Lm + pw, y + .5); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = cU; ctx.textAlign = 'right'; ctx.fillText(g.toFixed(0), Lm - 6, y);
+    ctx.fillStyle = cB; ctx.textAlign = 'left'; ctx.fillText((g / hi * 100).toFixed(0), Lm + pw + 6, y); }
+  ctx.save(); ctx.beginPath(); ctx.rect(Lm, y0, pw, ph); ctx.clip();
+  // 분획 눈금
+  ctx.font = '10px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  let lastX = -99, fs = [];
+  for (let s = Math.max(1, i0); s <= i; s++) if (D.frac[s] !== D.frac[s - 1]) fs.push(s);
+  const every = fs.length > 1 ? Math.max(1, Math.ceil(22 / Math.max(1, (X(D.t[fs[fs.length - 1]]) - X(D.t[fs[0]])) / (fs.length - 1)))) : 1;
+  for (const s of fs) { const x = X(D.t[s]), f = D.frac[s]; ctx.fillStyle = mute; ctx.globalAlpha = .7; ctx.fillRect(x, y0 + ph - 7, 1, 7); ctx.globalAlpha = 1;
+    if (f && (f % every === 0 || every === 1) && x - lastX > 18) { ctx.fillText(f, x + 3, y0 + ph - 1); lastX = x; } }
+  trace(D.cond, Yc, cC, 1.3, null, .9);
+  trace(D.B, Yb, cB, 1.5, [6, 4]);
+  trace(D.uv, Yu, cU, 2);
+  // 피크 정점
+  ctx.font = '11px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (const p of E.peaks) if (p.conf >= 0 && p.conf <= i && p.apex >= i0) { const x = X(D.t[p.apex]), y = Math.max(y0 + 22, Yu(D.uv[p.apex]) - 5);
+    ctx.fillStyle = ink; ctx.beginPath(); ctx.moveTo(x - 4, y - 7); ctx.lineTo(x + 4, y - 7); ctx.lineTo(x, y); ctx.fill(); ctx.fillText(mins(D.t[p.apex]), x, y - 9); }
+  ctx.restore();
+  ctx.font = '11px "IBM Plex Sans KR", sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  if (!narrow) { ctx.save(); ctx.translate(12, y0 + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillStyle = cU; ctx.fillText('UV 280 (mAU)', 0, 0); ctx.restore();
+    ctx.save(); ctx.translate(W - 8, y0 + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillStyle = cB; ctx.fillText('농도 B (%)', 0, 0); ctx.restore(); }
+
+  /* 아래 세 칸 */
+  SUBS.forEach((Sx, n) => {
+    const [a, b] = RANGE[Sx.k], yy = top + mh + gap + n * (sh + gap), Y = v => yy + sh - (v - a) / (b - a) * sh, col = css(CH[Sx.k].c);
+    shade(Sx.rules, yy, sh);
+    ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.strokeRect(Lm + .5, yy + .5, pw, sh);
+    ctx.fillStyle = mute; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '12px "IBM Plex Mono", monospace';
+    ctx.fillText(b.toFixed(Sx.d), Lm - 6, yy + 7); ctx.fillText(a.toFixed(Sx.d), Lm - 6, yy + sh - 7);
+    ctx.save(); ctx.beginPath(); ctx.rect(Lm, yy, pw, sh); ctx.clip(); trace(D[Sx.k], Y, col, 1.5); ctx.restore();
+    label(CH[Sx.k].name + (CH[Sx.k].unit ? ' (' + CH[Sx.k].unit + ')' : ''), col, Lm + 8, yy + 12);
+  });
+  /* 시간축 */
+  const yEnd = top + mh + 3 * (sh + gap) - gap, sm = span / 60, step = ([0.5, 1, 2, 5, 10, 15, 30, 60].find(s => sm / s <= (narrow ? 6 : 12)) || 120) * 60;
+  ctx.fillStyle = mute; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '12px "IBM Plex Mono", monospace';
+  for (let s = Math.ceil(Math.max(0, t0) / step) * step; s <= t0 + span + 1e-6; s += step) {
+    const x = X(s);
+    ctx.strokeStyle = line; ctx.globalAlpha = .35; ctx.beginPath(); ctx.moveTo(x + .5, y0); ctx.lineTo(x + .5, yEnd); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillText(+(s / 60).toFixed(1), x, H - bottom / 2);
+  }
+  ctx.textAlign = 'left'; ctx.fillText('min', Lm + pw + 6, H - bottom / 2);
+  ctx.strokeStyle = ink; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(X(tNow) - .5, y0); ctx.lineTo(X(tNow) - .5, yEnd); ctx.stroke(); ctx.globalAlpha = 1;
+  $('chLegend').innerHTML = `<span><i class="ln" style="border-color:var(--uv)"></i>UV 280</span><span><i class="ln dash" style="border-color:var(--B)"></i>농도 B</span><span><i class="ln" style="border-color:var(--cond)"></i>전도도 ${cl.toFixed(0)}–${ch.toFixed(0)} mS/cm</span><span><i class="tri"></i>피크 정점</span><span><i class="tick" style="height:8px;background:var(--mute)"></i>분획</span>`;
+}
+
+/* ---------- 유로 애니메이션 ---------- */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FA = [...document.querySelectorAll('.fa')];
+let last = 0, off = { A: 0, B: 0, F: 0, L: 0, C: 0, W: 0 }, rA = 0, rB = 0, dropT = 0;
+function frame(ts) {
+  const dt = last ? Math.min(.1, (ts - last) / 1000) : 0; last = ts;
+  if (D && cur >= 0) {
+    const fl = Math.max(0, D.flow[cur] || 0), b = Math.max(0, Math.min(1, (D.B[cur] || 0) / 100)), fr = D.frac[cur] > 0, inj = PHASES[D.phase[cur]].id === 'load';
+    const v = { A: fl * (1 - b), B: fl * b, F: fl, L: inj ? fl : 0, C: fr ? fl : 0, W: fr ? 0 : fl };
+    if (!reduce) { for (const k in off) off[k] = (off[k] - v[k] * 40 * dt) % 12; rA = (rA + v.A * 300 * dt) % 360; rB = (rB + v.B * 300 * dt) % 360; dropT = (dropT + fl * dt * 1.6) % 1; }
+    for (const p of FA) { const k = p.dataset.k; p.style.strokeDashoffset = off[k].toFixed(1); p.style.opacity = v[k] > 0.01 ? 1 : 0; }
+    $('rotA').setAttribute('transform', `rotate(${rA.toFixed(1)} 42 112)`); $('rotB').setAttribute('transform', `rotate(${rB.toFixed(1)} 98 112)`);
+    const d = $('drop'); d.setAttribute('cx', fr ? 150 : 218); d.setAttribute('cy', (410 + dropT * 18).toFixed(1)); d.setAttribute('opacity', fl > 0.01 && !reduce ? (1 - dropT * .6).toFixed(2) : 0);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- 이벤트 요약과 상세 팝업 ---------- */
+// 런 로그, 피크 정점, 경보 발생을 하나의 목록으로 만든다 (최근 것이 앞).
+function incidents(i) {
+  const list = [], open = {};
+  for (const e of D.events) if (e.i <= i) list.push({ kind: 'event', i: e.i, text: e.text, level: 0 });
+  for (const p of E.peaks) if (p.conf >= 0 && p.conf <= i) list.push({ kind: 'peak', i: p.apex, p, level: 0 });
+  for (const c of E.changes) {
+    if (c.i > i) break;
+    if (c.from === 0) { const it = { kind: 'alarm', rule: c.rule, i: c.i, level: c.to, end: null }; open[c.rule] = it; list.push(it); }
+    else if (open[c.rule]) { if (c.to === 0) { open[c.rule].end = c.i; delete open[c.rule]; } else open[c.rule].level = Math.max(open[c.rule].level, c.to); }
+  }
+  for (const it of list) it.key = it.kind + ':' + (it.rule || '') + ':' + it.i;
+  return list.sort((a, b) => b.i - a.i || (a.kind === 'event' ? 1 : -1));
+}
+const titleOf = it => it.kind === 'event' ? it.text : it.kind === 'peak' ? `${it.p.name} 정점 ${D.uv[it.i].toFixed(0)} mAU` : ruleName(it.rule);
+const kindTxt = it => it.kind === 'alarm' ? LVTXT[it.level] : it.kind === 'peak' ? '피크' : '런 로그';
+const dotCls = it => it.kind === 'peak' ? ' pk' : it.level ? ' l' + it.level : '';
+const ackOf = it => acks.some(a => a.rule === it.rule && a.i >= it.i) ? '확인함' : (unack.has(it.rule) && unack.get(it.rule).i >= it.i) ? '미확인' : '–';
+function stateOf(it) {
+  if (it.kind === 'event') return PHASES[D.phase[it.i]].name + ' 단계';
+  if (it.kind === 'peak') { const v = pkView(it.p, cur); return v.done ? `끝남, 분획 ${v.frac}` : '내려가는 중'; }
+  return it.end === null ? `진행 중, ${hms(D.t[cur] - D.t[it.i])} 경과` : `해제, 지속 ${hms(D.t[it.end] - D.t[it.i])}`;
+}
+function wallOf(i) {
+  if (!lastL) return '–';
+  const cs = lastL.start + (lastL.loop ? lastL.cycle * D.period * 1000 / lastL.speed : 0), d = new Date(cs + D.t[i] * 1000 / lastL.speed), p = v => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function renderEvents(i) {
+  INC = incidents(i);
+  const ev = INC.filter(x => x.kind === 'event').length, pk = INC.filter(x => x.kind === 'peak').length, al = INC.filter(x => x.kind === 'alarm');
+  const w = al.filter(x => x.level === 1).length, d = al.filter(x => x.level === 2).length, act = al.filter(x => x.end === null).length;
+  $('evCounts').innerHTML = `<span class="cnt">런 로그<b>${ev}</b></span><span class="cnt">피크<b>${pk}</b></span><span class="cnt w">주의<b>${w}</b></span><span class="cnt d">위험<b>${d}</b></span><span class="cnt${act ? ' d' : ''}">진행 중<b>${act}</b></span><span class="cnt${unack.size ? ' d' : ''}">미확인<b>${unack.size}</b></span>`;
+  $('evList').innerHTML = INC.length ? INC.slice(0, 4).map(it => `<button class="evi" data-k="${esc(it.key)}" aria-haspopup="dialog">
+      <span class="tm"><span class="dot${dotCls(it)}"></span><span class="mono">${hms(D.t[it.i])}</span>${kindTxt(it)}</span>
+      <span class="tt">${esc(titleOf(it))}</span><span class="ss${it.kind === 'alarm' && it.end === null ? ' on' : ''}">${stateOf(it)}</span></button>`).join('')
+    : '<p class="evempty">아직 발생한 이벤트가 없습니다.</p>';
+  if ($('dlg').open) renderDlg();
+}
+const dlg = $('dlg');
+function openDlg(key) { sel = key || (INC[0] && INC[0].key); dlg.showModal(); renderDlg(); }
+$('evList').onclick = e => { const b = e.target.closest('.evi'); if (b) openDlg(b.dataset.k); };
+$('evAll').onclick = () => openDlg();
+$('dlgClose').onclick = () => dlg.close();
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+$('dlgList').onclick = e => { const b = e.target.closest('button'); if (b) { sel = b.dataset.k; renderDlg(); } };
+
+function ruleText(r) {
+  const t = TH;
+  return { Phi: `≥ ${t.P_warn} MPa 주의, ≥ ${t.P_dang} MPa 위험, 3 s 지속`, Prise: `최근 60 s 최저값보다 ${t.P_rise} MPa 넘게 상승, 5 s 지속`,
+    Plo: `유량이 있는데 압력 < ${t.P_low} MPa, 5 s 지속`, flow: `설정 유량 ${fx(SP, 2)} mL/min 에서 ${t.flow_warn} % 넘게 벗어나면 주의, ${t.flow_dang} % 넘으면 위험, 5 s 지속`,
+    uv: `≥ ${t.UV_warn} mAU 주의, ≥ ${t.UV_dang} mAU 위험, 5 s 지속`, base: `용출을 시작할 때 UV > ${t.base_max} mAU`,
+    grad: `농도 B 가 120 s 동안 10 %p 넘게 변했는데 전도도 변화 < ${t.grad_min} mS/cm, 10 s 지속`,
+    pH: `${t.pH_lo}–${t.pH_hi} 밖이면 주의, 0.5 더 벗어나면 위험, 10 s 지속`, miss: `용출·스트립 단계에서 분획 수집 없이 UV > ${t.pk_min} mAU, 3 s 지속`,
+    sensor: 'UV −100–7000 mAU, pH 0–14 밖이거나 전도도·압력이 음수, 2 s 지속' }[r.id] || '';
+}
+function renderDlg() {
+  const scroll = $('dlgList').scrollTop;
+  $('dlgList').innerHTML = INC.map(it => `<li><button data-k="${esc(it.key)}" aria-current="${it.key === sel}"><time class="mono">${hms(D.t[it.i])}</time><span class="dot${dotCls(it)}"></span><span>${esc(titleOf(it))}</span></button></li>`).join('') || '<li class="evempty" style="padding:10px">아직 발생한 이벤트가 없습니다.</li>';
+  $('dlgList').scrollTop = scroll;
+  const it = INC.find(x => x.key === sel) || INC[0];
+  if (!it) { $('dlgDetail').innerHTML = '<p class="evempty">런이 진행되면 런 로그와 피크, 경보가 여기에 쌓입니다.</p>'; return; }
+  sel = it.key;
+  const al = it.kind === 'alarm', j = al && it.end !== null ? it.end : cur, rule = al ? ruleOf(it.rule) : null;
+  const k = al && CH[rule.ch] ? rule.ch : 'uv';
+  const row = (name, a, d, unit) => `<tr><td>${name}</td><td class="mono">${fx(D[a][it.i], d)}</td><td class="mono">${fx(D[a][j], d)}</td><td>${unit}</td></tr>`;
+  let kv = `<dt>런 경과</dt><dd class="mono">${hms(D.t[it.i])} (${mins(D.t[it.i])} min, ${fx(D.vol[it.i], 2)} mL)</dd><dt>발생 시각</dt><dd class="mono">${wallOf(it.i)}</dd><dt>단계</dt><dd>${PHASES[D.phase[it.i]].name}</dd>`;
+  if (al) kv += `<dt>상태</dt><dd>${stateOf(it)}</dd>${it.end !== null ? `<dt>해제 시각</dt><dd class="mono">${wallOf(it.end)}</dd>` : ''}<dt>운전자 확인</dt><dd>${ackOf(it)}</dd><dt>판정 조건</dt><dd>${esc(ruleText(rule))}</dd>`;
+  if (it.kind === 'peak') { const v = pkView(it.p, cur), b = D.B[it.i];
+    kv += `<dt>높이</dt><dd class="mono">${D.uv[it.i].toFixed(1)} mAU</dd><dt>면적</dt><dd class="mono">${v.area.toFixed(0)} mAU·mL${v.done ? '' : ' (지금까지)'}</dd><dt>정점의 농도 B</dt><dd class="mono">${fx(b, 1)} %${isNaN(b) ? '' : `, 이미다졸 약 ${imid(b).toFixed(0)} mM`}</dd><dt>분획</dt><dd class="mono">${v.frac}</dd><dt>상태</dt><dd>${v.done ? `끝남, ${mins(D.t[it.p.start])}–${mins(D.t[it.p.end])} min` : '내려가는 중'}</dd>`; }
+  $('dlgDetail').innerHTML = `<h3>${esc(titleOf(it))}<span class="lvp${dotCls(it)}">${kindTxt(it)}</span></h3>
+    <dl class="kv">${kv}</dl>
+    <h4>${CH[k].name} 추이 (3분 전부터)</h4>
+    <canvas id="dchart" aria-label="발생 전후 추이 그래프"></canvas>
+    <h4>측정값</h4>
+    <div class="scroll"><table><thead><tr><th>항목</th><th>발생 시점</th><th>${al && it.end !== null ? '해제 시점' : '현재'}</th><th></th></tr></thead><tbody>
+      ${row('UV 280', 'uv', 1, 'mAU')}${row('전도도', 'cond', 2, 'mS/cm')}${row('농도 B', 'B', 1, '%')}${row('압력', 'P', 3, 'MPa')}${row('유량', 'flow', 3, 'mL/min')}${row('pH', 'pH', 2, '')}${row('부피', 'vol', 2, 'mL')}
+    </tbody></table></div>`;
+  drawDetailChart(it, k);
+}
+function drawDetailChart(it, k) {
+  const cv = $('dchart'); if (!cv) return;
+  const [c, W, H] = fit(cv), al = it.kind === 'alarm';
+  const tA = Math.max(0, D.t[it.i] - 180), tEnd = al ? (it.end !== null ? D.t[it.end] : D.t[cur]) : it.kind === 'peak' && it.p.endDet >= 0 && it.p.endDet <= cur ? D.t[it.p.end] : D.t[it.i];
+  const tB = Math.max(tA + 60, Math.min(D.t[cur], tEnd + 120));
+  const i0 = FP.indexAt(D, tA), i1 = Math.min(cur, FP.indexAt(D, tB)), a = D[k];
+  let lo = Infinity, hi = -Infinity;
+  for (let s = i0; s <= i1; s++) { if (SENS[s] || isNaN(a[s])) continue; lo = Math.min(lo, a[s]); hi = Math.max(hi, a[s]); }
+  if (!isFinite(lo)) return;
+  const pad = Math.max((hi - lo) * 0.12, k === 'uv' ? 1 : 0.01); lo -= pad; hi += pad;
+  const Lm = 56, Rm = 10, Tm = 8, Bm = 22, pw = W - Lm - Rm, ph = H - Tm - Bm;
+  const X = t => Lm + (t - tA) / (tB - tA) * pw, Y = v => Tm + ph - (v - lo) / (hi - lo) * ph;
+  const ink = css('--ink'), mute = css('--mute'), line = css('--line');
+  if (al) { c.fillStyle = css(it.level === 2 ? '--dang' : '--warn'); c.globalAlpha = .15; c.fillRect(X(D.t[it.i]), Tm, Math.max(2, X(Math.min(tEnd, tB)) - X(D.t[it.i])), ph); c.globalAlpha = 1; }
+  else { c.strokeStyle = ink; c.globalAlpha = .5; c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(D.t[it.i]), Tm); c.lineTo(X(D.t[it.i]), Tm + ph); c.stroke(); c.globalAlpha = 1; }
+  c.strokeStyle = line; c.lineWidth = 1; c.strokeRect(Lm + .5, Tm + .5, pw, ph);
+  c.font = '11px "IBM Plex Mono", monospace'; c.fillStyle = mute; c.textAlign = 'right'; c.textBaseline = 'middle';
+  const d = k === 'uv' ? 0 : CH[k].d;
+  for (const g of [lo + pad, (lo + hi) / 2, hi - pad]) { c.fillText(g.toFixed(d), Lm - 6, Y(g)); c.globalAlpha = .4; c.beginPath(); c.moveTo(Lm, Y(g) + .5); c.lineTo(Lm + pw, Y(g) + .5); c.stroke(); c.globalAlpha = 1; }
+  c.save(); c.beginPath(); c.rect(Lm, Tm, pw, ph); c.clip(); c.strokeStyle = css(CH[k].c); c.lineWidth = 1.8; c.lineJoin = 'round'; c.beginPath(); let pen = false;
+  for (let s = i0; s <= i1; s++) { if (SENS[s] || isNaN(a[s])) { pen = false; continue; } const x = X(D.t[s]), y = Y(a[s]); pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true; }
+  c.stroke(); c.restore();
+  c.fillStyle = mute; c.textBaseline = 'alphabetic';
+  c.textAlign = 'left'; c.fillText(mins(tA) + ' min', Lm, H - 5); c.textAlign = 'right'; c.fillText(mins(D.t[i1]) + ' min', Lm + pw, H - 5);
+  const xe = X(D.t[it.i]);
+  if (xe - Lm > 90 && Lm + pw - xe > 90) { c.textAlign = 'center'; c.fillStyle = ink; c.fillText(mins(D.t[it.i]), xe, H - 5); }
+}
+
+/* ---------- 실시간 시계 ---------- */
+function tick() {
+  if (!D) return;
+  const L = FP.liveClock(D, S); lastL = L;
+  if (FREEZE !== null) { L.i = FP.indexAt(D, FREEZE); L.waiting = L.ended = false; }
+  if (L.cycle !== cycle) { if (cycle >= 0) { prevLv = {}; unack = new Map(); acks = []; cur = -1; } cycle = L.cycle; }
+  const now = Date.now();
+  $('live').className = 'live' + (L.waiting || L.ended ? ' wait' : '');
+  $('liveTxt').textContent = L.waiting ? `런 시작 전, ${hms((L.start - now) / 1000)} 남음` : L.ended ? '런 종료' : L.speed === 1 ? '실시간' : `실시간 ${L.speed}배속`;
+  const st = new Date(L.start + (L.loop ? L.cycle * D.period * 1000 / L.speed : 0)), p2 = v => String(v).padStart(2, '0');
+  $('startDate').textContent = `${st.getFullYear()}-${p2(st.getMonth() + 1)}-${p2(st.getDate())}`;
+  setFlip($('fStart'), `${p2(st.getHours())}:${p2(st.getMinutes())}:${p2(st.getSeconds())}`);
+  const el = FREEZE !== null ? FREEZE : L.waiting ? 0 : L.el;
+  setFlip($('fElapsed'), hms(el));
+  $('elCap').textContent = L.waiting ? '런 진행 (대기)' : L.ended ? '런 진행 (종료)' : '런 진행';
+  if (EL0 >= 0 && !L.waiting && el >= D.t[EL0]) {
+    const fd = new Date(st.getTime() + D.t[EL0] * 1000 / L.speed);
+    setFlip($('fElut'), `${p2(fd.getHours())}:${p2(fd.getMinutes())}:${p2(fd.getSeconds())}`);
+    $('elutCap').textContent = '경과 ' + hms(el - D.t[EL0]);
+  } else { setFlip($('fElut'), '--:--:--'); $('elutCap').textContent = EL0 >= 0 ? '대기' : '기록 없음'; }
+  render(L.i);
+}
+// ?t=초 : 그 런 시각에 화면을 고정한다 (점검용).
+const FREEZE = (q => q !== null && isFinite(+q) ? +q : null)(new URLSearchParams(location.search).get('t'));
+// 1초마다, 매 초 경계에 맞춰 갱신한다.
+function restartClock() { clearTimeout(clk); const loop = () => { tick(); clk = setTimeout(loop, 1000 - Date.now() % 1000 + 5); }; loop(); }
+
+/* 플립 시계: 바뀐 숫자만 위 반쪽이 접히고 아래 반쪽이 펼쳐진다. */
+const half = (cls, d) => `<span class="h ${cls}"><span>${d}</span></span>`;
+function setFlip(el, str) {
+  if (el.dataset.v === str) return;
+  el.dataset.name = el.dataset.name || el.getAttribute('aria-label');
+  el.setAttribute('aria-label', el.dataset.name + ' ' + str);
+  if (!el.dataset.v || el.dataset.v.length !== str.length) {
+    el.innerHTML = [...str].map(c => c === ':' ? '<span class="fsep">:</span>' : `<span class="fd" data-d="${c}">${half('t', c)}${half('b', c)}</span>`).join('');
+    el.dataset.v = str; return;
+  }
+  const cells = el.children;
+  [...str].forEach((c, k) => {
+    const cell = cells[k]; if (c === ':' || cell.dataset.d === c) return;
+    const old = cell.dataset.d; cell.dataset.d = c;
+    if (reduce) { cell.innerHTML = half('t', c) + half('b', c); return; }
+    cell.innerHTML = half('t', c) + half('b', old) + half('t ft', old) + half('b fb', c);
+    clearTimeout(cell._t); cell._t = setTimeout(() => { cell.innerHTML = half('t', c) + half('b', c); }, 640);
+  });
+  el.dataset.v = str;
+}
+
+/* ---------- 표시 구간 ---------- */
+const WINS = [[300, '5분'], [900, '15분'], [1800, '30분'], [0, '전체']];
+$('wins').insertAdjacentHTML('beforeend', WINS.map(w => `<button data-w="${w[0]}">${w[1]}</button>`).join(''));
+const markWin = () => document.querySelectorAll('#wins button').forEach(b => { b.classList.toggle('on', +b.dataset.w === win); b.setAttribute('aria-pressed', +b.dataset.w === win); });
+$('wins').onclick = e => { const b = e.target.closest('button'); if (!b) return; win = +b.dataset.w; try { localStorage.setItem('fp.win', win); } catch {} markWin(); if (cur >= 0) drawChart(cur); };
+markWin();
+const redraw = () => { if (D && cur >= 0) { drawChart(cur); drawTimeline(cur); } };
+new ResizeObserver(redraw).observe($('trend'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+
+/* ---------- 불러오기 ---------- */
+async function load() {
+  try {
+    META = await FP.loadData(); D = META.D; S = FP.settings(); TH = FP.thresholds(); prepare();
+    $('err').style.display = 'none';
+    restartClock();
+  } catch (e) { $('err').style.display = 'block'; $('err').textContent = '데이터를 불러오지 못했습니다. ' + e.message + ' 관리자 페이지에서 파일을 다시 올리거나 기본 데이터로 되돌리세요.'; }
+}
+// 관리자 페이지에서 설정이나 파일을 바꾸면 다시 읽는다.
+const onSettings = () => { S = FP.settings(); const th = FP.thresholds(); if (JSON.stringify(th) !== JSON.stringify(TH)) { TH = th; if (D) prepare(); } restartClock(); };
+if (FP.bc) FP.bc.onmessage = m => { if (m.data === 'data') load(); else onSettings(); };
+addEventListener('storage', e => { if (e.key === 'fp.settings') onSettings(); });
+window.__fp = { openDlg: k => openDlg(k), get cur() { return cur; }, render: i => render(i, true), get D() { return D; }, get E() { return E; }, get INC() { return INC; } };
+load();
+}
+</script>
+</body>
+</html>
