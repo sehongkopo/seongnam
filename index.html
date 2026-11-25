@@ -31,8 +31,15 @@ h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;tex
 .live.wait i{background:var(--mute)}
 .tower{display:flex;align-items:center;gap:12px}
 .tower svg{width:34px;height:auto;flex:none}
-.tower .st b{display:block;font-size:22px;line-height:1.1}
-.tower .st span{font-size:13px;color:var(--mute)}
+.chip{display:flex;align-items:center;gap:12px;padding:9px 18px 9px 14px;border-radius:999px;background:var(--okbg);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);transition:background .3s,border-color .3s}
+.chip .pulse{position:relative;width:12px;height:12px;border-radius:50%;background:var(--ok);flex:none}
+.chip .pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite}
+@keyframes ping{75%,100%{transform:scale(2.6);opacity:0}}
+.chip b{display:block;font-size:17px;font-weight:600;line-height:1.2;color:var(--ok);letter-spacing:-.01em}
+.chip small{display:block;font-size:12px;color:var(--mute);line-height:1.3}
+.chip.w{background:var(--warnbg);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}.chip.w .pulse{background:var(--warn)}.chip.w b{color:var(--warn)}
+.chip.d{background:var(--dangbg);border-color:color-mix(in srgb,var(--dang) 50%,transparent)}.chip.d .pulse{background:var(--dang)}.chip.d b{color:var(--dang)}
+.chip.d .pulse::after{animation-duration:1s}
 /* 플립 시계 */
 .clk{display:flex;flex-direction:column;gap:4px}
 .clk .cap{font-size:13px;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
@@ -82,6 +89,45 @@ button.strong{background:var(--ink);color:var(--panel);border-color:var(--ink);f
 .badge{font-size:12px;padding:1px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap;color:var(--ok)}
 .l1 .badge{color:var(--warn)}.l2 .badge{color:var(--dang)}
 .needle{transition:transform .6s cubic-bezier(.3,1.4,.5,1)}
+
+/* 이벤트 요약 */
+.right{display:flex;flex-direction:column;gap:14px}
+.evsum{padding:14px 16px}
+.evhead{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin-bottom:10px}
+.evhead h2{margin:0}
+.counts{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.cnt{font-size:13px;padding:2px 10px;border-radius:99px;background:var(--bg);color:var(--mute);white-space:nowrap}
+.cnt b{color:var(--ink);margin-left:4px;font-weight:600}.cnt.w b{color:var(--warn)}.cnt.d b{color:var(--dang)}
+.evlist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.evi{text-align:left;padding:10px 12px;min-height:0;border-radius:8px;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;gap:3px;line-height:1.35;font-size:14px}
+.evi:hover{border-color:var(--mute)}
+.evi .tm{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.evi .tt{font-weight:500}
+.evi .ss{font-size:12px;color:var(--mute)}
+.evi .ss.on{color:var(--dang);font-weight:500}
+.evempty{font-size:14px;color:var(--mute);margin:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--DO);flex:none;display:inline-block}
+.dot.l1{background:var(--warn)}.dot.l2{background:var(--dang)}
+
+/* 상세 팝업 */
+dialog{width:min(960px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgb(0 0 0 / .3)}
+dialog::backdrop{background:rgb(10 14 12 / .5)}
+.dh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.dh h2{margin:0}
+.db{display:grid;grid-template-columns:290px minmax(0,1fr);height:min(560px,calc(100vh - 130px))}
+.dl{border-right:1px solid var(--line);overflow:auto;list-style:none;margin:0;padding:6px}
+.dl button{width:100%;text-align:left;border:0;background:none;padding:8px 10px;min-height:0;display:flex;gap:10px;align-items:baseline;border-radius:6px;font-size:14px;line-height:1.35}
+.dl button:hover{background:var(--bg)}
+.dl button[aria-current=true]{background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}
+.dl time{color:var(--mute);font-size:12px;flex:none}
+.dd{padding:16px 20px;overflow:auto}
+.dd h3{font-size:20px;margin:0 0 4px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lvp{font-size:12px;font-weight:500;padding:1px 10px;border-radius:99px;border:1px solid currentColor;color:var(--DO)}
+.lvp.l1{color:var(--warn)}.lvp.l2{color:var(--dang)}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 18px;font-size:14px;margin:12px 0 14px}
+.kv dt{color:var(--mute)}.kv dd{margin:0}
+.dd h4{font-size:14px;font-weight:600;margin:14px 0 6px}
+#dchart{display:block;width:100%;height:190px}
 
 /* 경보 표시창과 펌프 */
 .mid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;margin-top:14px}
@@ -137,9 +183,9 @@ footer a{color:inherit}
 #err{display:none;padding:14px 16px;margin-bottom:14px;border:1px solid var(--dang);border-radius:10px;color:var(--dang)}
 
 @media(max-width:1180px){header{grid-template-columns:minmax(0,1fr) auto auto}header>div:first-child{grid-column:1/-1}}
-@media(max-width:1000px){.gauges{grid-template-columns:repeat(2,minmax(0,1fr))}.mid,.bottom{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:700px){header{grid-template-columns:minmax(0,1fr)}.flip{--h:34px;--w:22px}.top{grid-template-columns:minmax(0,1fr)}.vessel svg{max-width:170px}.ann{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{height:480px}}
-@media(prefers-reduced-motion:reduce){.blink,.win.unack,.fd .ft,.fd .fb{animation:none}.needle{transition:none}.led.on{box-shadow:none}}
+@media(max-width:1000px){.gauges,.evlist{grid-template-columns:repeat(2,minmax(0,1fr))}.mid,.bottom{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.db{grid-template-columns:minmax(0,1fr);height:auto}.dl{max-height:200px;border-right:0;border-bottom:1px solid var(--line)}header{grid-template-columns:minmax(0,1fr)}.flip{--h:34px;--w:22px}.top{grid-template-columns:minmax(0,1fr)}.vessel svg{max-width:170px}.ann{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{height:480px}}
+@media(prefers-reduced-motion:reduce){.chip .pulse::after{animation:none}.blink,.win.unack,.fd .ft,.fd .fb{animation:none}.needle{transition:none}.led.on{box-shadow:none}}
 </style>
 </head>
 <body>
@@ -147,7 +193,7 @@ footer a{color:inherit}
 <header>
   <div>
     <h1>미생물 배양기 실시간 모니터</h1>
-    <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span><span id="src">데이터 불러오는 중…</span><span id="runinfo"></span></div>
+    <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span><span id="runinfo"></span></div>
   </div>
   <div class="tower" aria-live="polite">
     <svg viewBox="0 0 34 92" role="img" aria-label="신호탑">
@@ -156,7 +202,7 @@ footer a{color:inherit}
       <rect class="lamp" id="lampA" x="5" y="28" width="24" height="24" rx="5" fill="var(--lampoff)"/>
       <rect class="lamp" id="lampG" x="5" y="54" width="24" height="24" rx="5" fill="var(--lampoff)"/>
     </svg>
-    <div class="st"><b id="stTxt">–</b><span id="stSub">경보 없음</span></div>
+    <div class="chip" id="stChip"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
   </div>
   <div class="clk"><div class="cap"><span>배양 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="배양 시작 시각"></div></div>
   <div class="clk"><div class="cap"><span id="elCap">배양 진행</span><b class="mono" id="elDays"></b></div><div class="flip" id="fElapsed" aria-label="배양 진행 시간"></div></div>
@@ -278,8 +324,19 @@ footer a{color:inherit}
     </svg>
     <div class="phase" id="phase">–</div>
   </div>
-  <div class="gauges" id="gauges"></div>
+  <div class="right">
+    <div class="gauges" id="gauges"></div>
+    <div class="panel evsum">
+      <div class="evhead"><h2>이벤트 요약</h2><div class="counts" id="evCounts"></div><button id="evAll">전체 내역</button></div>
+      <div class="evlist" id="evList"></div>
+    </div>
+  </div>
 </section>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dh"><h2 id="dlgTitle">이벤트 상세 내역</h2><button id="dlgClose" aria-label="닫기">닫기</button></div>
+  <div class="db"><ul class="dl" id="dlgList"></ul><div class="dd" id="dlgDetail"></div></div>
+</dialog>
 
 <section class="mid">
   <div class="panel box">
@@ -320,6 +377,7 @@ footer a{color:inherit}
 const $ = id => document.getElementById(id);
 const { hms, esc } = FM;
 let D = null, E = null, META = null, S = FM.settings(), TH = FM.thresholds();
+let lastL = null, INC = [], sel = null;
 let cur = -1, prevLv = {}, unack = new Map(), acks = [], win = 3600, soundOn = false, lastBeep = 0, cycle = -1, clk = null;
 let RANGE = {};
 try { soundOn = localStorage.getItem('fm.sound') === '1'; win = +localStorage.getItem('fm.win') || 3600; } catch {}
@@ -480,7 +538,8 @@ function render(i, force) {
   A_.setAttribute('fill', worst === 1 || (unLv === 1 && worst < 2) ? 'var(--warn)' : 'var(--lampoff)');
   G_.setAttribute('fill', worst === 0 && !anyUn ? 'var(--ok)' : 'var(--lampoff)');
   R_.classList.toggle('blink', unLv === 2); A_.classList.toggle('blink', unLv === 1);
-  $('stTxt').textContent = LVTXT[worst]; $('stTxt').style.color = worst ? `var(${worst === 2 ? '--dang' : '--warn'})` : 'var(--ok)';
+  $('stChip').className = 'chip' + (worst === 2 ? ' d' : worst === 1 ? ' w' : '');
+  $('stTxt').textContent = ['정상 운전', '주의', '위험'][worst];
   const nAct = Object.values(lvOf).filter(Boolean).length;
   $('stSub').textContent = nAct ? `활성 경보 ${nAct}건` + (anyUn ? `, 미확인 ${unack.size}건` : '') : anyUn ? `해제됐으나 미확인 ${unack.size}건` : '경보 없음';
   // 배너
@@ -521,7 +580,7 @@ function render(i, force) {
   // 단계와 기록
   let ph = '–'; for (let k = D.events.length - 1; k >= 0; k--) if (D.events[k].i <= i) { ph = hms(D.t[D.events[k].i]) + ' ' + D.events[k].text; break; }
   $('phase').textContent = ph;
-  renderLog(i); renderRows(i); drawTimeline(i); drawChart(i);
+  renderLog(i); renderRows(i); drawTimeline(i); drawChart(i); renderEvents(i);
 }
 
 function renderLog(i) {
@@ -678,10 +737,121 @@ function drawVessel(dt) {
 function frame(ts) { const dt = last ? Math.min(.1, (ts - last) / 1000) : 0; last = ts; drawVessel(dt); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 
+
+/* ---------- 이벤트 요약과 상세 팝업 ---------- */
+// 공정 이벤트와 경보 발생을 하나의 목록으로 만든다 (최근 것이 앞).
+function incidents(i) {
+  const list = [], open = {};
+  for (const e of D.events) if (e.i <= i) list.push({ kind: 'event', i: e.i, text: e.text, level: 0 });
+  for (const c of E.changes) {
+    if (c.i > i) break;
+    if (c.from === 0) { const it = { kind: 'alarm', rule: c.rule, i: c.i, level: c.to, end: null }; open[c.rule] = it; list.push(it); }
+    else if (open[c.rule]) { if (c.to === 0) { open[c.rule].end = c.i; delete open[c.rule]; } else open[c.rule].level = Math.max(open[c.rule].level, c.to); }
+  }
+  for (const it of list) it.key = it.kind + ':' + (it.rule || '') + ':' + it.i;
+  return list.sort((a, b) => b.i - a.i || (a.kind === 'event' ? 1 : -1));
+}
+const titleOf = it => it.kind === 'event' ? it.text : ruleName(it.rule);
+const ackOf = it => it.kind === 'event' ? null : acks.some(a => a.rule === it.rule && a.i >= it.i) ? '확인함' : (unack.has(it.rule) && unack.get(it.rule).i >= it.i) ? '미확인' : '–';
+function stateOf(it) {
+  if (it.kind === 'event') return '공정 이벤트';
+  return it.end === null ? `진행 중, ${hms(D.t[cur] - D.t[it.i])} 경과` : `해제, 지속 ${hms(D.t[it.end] - D.t[it.i])}`;
+}
+function wallOf(i) {
+  if (!lastL) return '–';
+  const cs = lastL.start + (lastL.loop ? lastL.cycle * D.period * 1000 / lastL.speed : 0), d = new Date(cs + D.t[i] * 1000 / lastL.speed), p = v => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function renderEvents(i) {
+  INC = incidents(i);
+  const ev = INC.filter(x => x.kind === 'event').length, al = INC.filter(x => x.kind === 'alarm');
+  const w = al.filter(x => x.level === 1).length, d = al.filter(x => x.level === 2).length, act = al.filter(x => x.end === null).length;
+  $('evCounts').innerHTML = `<span class="cnt">공정 이벤트<b>${ev}</b></span><span class="cnt w">주의<b>${w}</b></span><span class="cnt d">위험<b>${d}</b></span><span class="cnt${act ? ' d' : ''}">진행 중<b>${act}</b></span><span class="cnt${unack.size ? ' d' : ''}">미확인<b>${unack.size}</b></span>`;
+  $('evList').innerHTML = INC.length ? INC.slice(0, 4).map(it => `<button class="evi" data-k="${esc(it.key)}" aria-haspopup="dialog">
+      <span class="tm"><span class="dot${it.level ? ' l' + it.level : ''}"></span><span class="mono">${hms(D.t[it.i])}</span>${it.kind === 'alarm' ? LVTXT[it.level] : '이벤트'}</span>
+      <span class="tt">${esc(titleOf(it))}</span><span class="ss${it.kind === 'alarm' && it.end === null ? ' on' : ''}">${stateOf(it)}</span></button>`).join('')
+    : '<p class="evempty">아직 발생한 이벤트가 없습니다.</p>';
+  if ($('dlg').open) renderDlg();
+}
+const dlg = $('dlg');
+function openDlg(key) { sel = key || (INC[0] && INC[0].key); dlg.showModal(); renderDlg(); }
+$('evList').onclick = e => { const b = e.target.closest('.evi'); if (b) openDlg(b.dataset.k); };
+$('evAll').onclick = () => openDlg();
+$('dlgClose').onclick = () => dlg.close();
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+$('dlgList').onclick = e => { const b = e.target.closest('button'); if (b) { sel = b.dataset.k; renderDlg(); } };
+
+const CHART_OF = { T: 'T', pH: 'pH', DOlo: 'DO', DOhi: 'DO', rpm: 'rpm', pump: 'pH', both: 'pH', sensor: 'pH' };
+function renderDlg() {
+  const scroll = $('dlgList').scrollTop;
+  $('dlgList').innerHTML = INC.map(it => `<li><button data-k="${esc(it.key)}" aria-current="${it.key === sel}"><time class="mono">${hms(D.t[it.i])}</time><span class="dot${it.level ? ' l' + it.level : ''}"></span><span>${esc(titleOf(it))}</span></button></li>`).join('') || '<li class="evempty" style="padding:10px">아직 발생한 이벤트가 없습니다.</li>';
+  $('dlgList').scrollTop = scroll;
+  const it = INC.find(x => x.key === sel) || INC[0];
+  if (!it) { $('dlgDetail').innerHTML = '<p class="evempty">배양이 진행되면 공정 이벤트와 경보가 여기에 쌓입니다.</p>'; return; }
+  sel = it.key;
+  const f = (v, d) => isNaN(v) ? '–' : v.toFixed(d), j = it.kind === 'alarm' && it.end !== null ? it.end : cur;
+  const row = (name, a, d, unit) => `<tr><td>${name}</td><td class="mono">${f(D[a][it.i], d)}</td><td class="mono">${f(D[a][j], d)}</td><td>${unit}</td></tr>`;
+  const ak = ackOf(it), rule = it.kind === 'alarm' ? E.rules.find(r => r.id === it.rule) : null;
+  $('dlgDetail').innerHTML = `<h3>${esc(titleOf(it))}<span class="lvp${it.level ? ' l' + it.level : ''}">${it.kind === 'alarm' ? LVTXT[it.level] : '공정 이벤트'}</span></h3>
+    <dl class="kv">
+      <dt>배양 경과</dt><dd class="mono">${hms(D.t[it.i])}</dd>
+      <dt>발생 시각</dt><dd class="mono">${wallOf(it.i)}</dd>
+      ${it.kind === 'alarm' ? `<dt>상태</dt><dd>${stateOf(it)}</dd>${it.end !== null ? `<dt>해제 시각</dt><dd class="mono">${wallOf(it.end)}</dd>` : ''}<dt>운전자 확인</dt><dd>${ak}</dd><dt>판정 조건</dt><dd>${esc(ruleText(rule))}</dd>` : ''}
+    </dl>
+    <h4>${CHART_LABEL[CHART_OF[it.rule] || 'DO']} 추이 (발생 15분 전부터)</h4>
+    <canvas id="dchart" aria-label="발생 전후 추이 그래프"></canvas>
+    <h4>측정값</h4>
+    <div class="scroll"><table><thead><tr><th>항목</th><th>발생 시점</th><th>${it.kind === 'alarm' && it.end !== null ? '해제 시점' : '현재'}</th><th></th></tr></thead><tbody>
+      ${row('온도', 'T', 2, '°C')}${row('온도 SP', 'tsp', 1, '°C')}${row('pH', 'pH', 3, '')}${row('DO', 'DO', 1, '%')}${row('DO SP', 'dosp', 0, '%')}${row('교반', 'rpm', 0, 'rpm')}${row('NaOH 누적', 'nac', 1, 'mL')}${row('HCl 누적', 'hcc', 1, 'mL')}${row('OD600', 'od', 1, '')}
+    </tbody></table></div>`;
+  drawDetailChart(it, CHART_OF[it.rule] || 'DO');
+}
+const CHART_LABEL = { T: '온도', pH: 'pH', DO: 'DO', rpm: '교반' };
+function ruleText(r) {
+  const t = TH;
+  return { T: `|온도 − SP| > ${t.T_warn} °C 주의, > ${t.T_dang} °C 위험, 30 s 지속`, pH: `|pH − SP| > ${t.pH_warn} 주의, > ${t.pH_dang} 위험, 10 s 지속`,
+    DOlo: `DO < SP − ${t.DO_warn} %p 주의, < ${t.DO_dang} % 위험, 10 s 지속`, DOhi: `최근 5분 최저값보다 ${t.DO_high} %p 넘게 상승, 60 s 지속`,
+    rpm: `≥ ${t.rpm_warn} rpm 주의, ≥ ${t.rpm_dang} rpm 위험, 30 s 지속`, pump: `NaOH 또는 HCl 이 ${t.pump_max} s 넘게 연속 가동`,
+    both: 'NaOH 와 HCl 이 함께 가동', sensor: 'pH 2–12, DO −2–130 %, 온도 5–60 °C 밖, 5 s 지속' }[r.id] || '';
+}
+function drawDetailChart(it, k) {
+  const cv = $('dchart'); if (!cv) return;
+  const [c, W, H] = fit(cv), L = LOOPS.find(x => x.k === k);
+  const tA = Math.max(0, D.t[it.i] - 900), tEnd = it.kind === 'alarm' && it.end !== null ? D.t[it.end] : D.t[cur];
+  const tB = Math.max(tA + 60, Math.min(D.t[cur], tEnd + 300));
+  const i0 = FM.indexAt(D, tA), i1 = Math.min(cur, FM.indexAt(D, tB)), bad = E.rules[7].lv;
+  let lo = Infinity, hi = -Infinity;
+  for (let s = i0; s <= i1; s++) { if (bad[s]) continue; for (const a of [D[k], L.sp ? D[L.sp] : null]) if (a && !isNaN(a[s])) { lo = Math.min(lo, a[s]); hi = Math.max(hi, a[s]); } }
+  if (!isFinite(lo)) return;
+  const pad = Math.max((hi - lo) * 0.12, k === 'pH' ? 0.01 : 0.5); lo -= pad; hi += pad;
+  const Lm = 52, Rm = 10, Tm = 8, Bm = 22, pw = W - Lm - Rm, ph = H - Tm - Bm;
+  const X = t => Lm + (t - tA) / (tB - tA) * pw, Y = v => Tm + ph - (v - lo) / (hi - lo) * ph;
+  const ink = css('--ink'), mute = css('--mute'), line = css('--line');
+  if (it.kind === 'alarm') { c.fillStyle = css(it.level === 2 ? '--dang' : '--warn'); c.globalAlpha = .15; c.fillRect(X(D.t[it.i]), Tm, Math.max(2, X(Math.min(tEnd, tB)) - X(D.t[it.i])), ph); c.globalAlpha = 1; }
+  else { c.strokeStyle = css('--DO'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(D.t[it.i]), Tm); c.lineTo(X(D.t[it.i]), Tm + ph); c.stroke(); }
+  c.strokeStyle = line; c.lineWidth = 1; c.strokeRect(Lm + .5, Tm + .5, pw, ph);
+  c.font = '11px "IBM Plex Mono", monospace'; c.fillStyle = mute; c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (const g of [lo + pad, (lo + hi) / 2, hi - pad]) { c.fillText(g.toFixed(k === 'pH' ? 3 : k === 'T' ? 2 : 0), Lm - 6, Y(g)); c.globalAlpha = .4; c.beginPath(); c.moveTo(Lm, Y(g) + .5); c.lineTo(Lm + pw, Y(g) + .5); c.stroke(); c.globalAlpha = 1; }
+  const cols = Math.max(1, Math.floor(pw)), per = (tB - tA) / cols;
+  const trace = (a, color, dash, alpha) => {
+    c.save(); c.strokeStyle = color; c.lineWidth = 1.6; c.globalAlpha = alpha; if (dash) c.setLineDash(dash); c.beginPath(); let pen = false;
+    for (let q = 0; q < cols; q++) { const s0 = FM.indexAt(D, tA + q * per), s1 = Math.min(i1, FM.indexAt(D, tA + (q + 1) * per)); if (s0 > i1) break;
+      let sum = 0, n = 0; for (let s = s0; s <= Math.max(s0, s1); s++) if (!isNaN(a[s]) && !bad[s]) { sum += a[s]; n++; }
+      if (!n) { pen = false; continue; } const x = Lm + q + .5, y = Y(sum / n); pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true; }
+    c.stroke(); c.restore();
+  };
+  if (L.sp) trace(D[L.sp], ink, [5, 4], .45);
+  trace(D[k], css(L.c), null, 1);
+  c.fillStyle = mute; c.textBaseline = 'alphabetic'; c.font = '11px "IBM Plex Mono", monospace';
+  c.textAlign = 'left'; c.fillText(hms(tA), Lm, H - 5); c.textAlign = 'right'; c.fillText(hms(D.t[i1]), Lm + pw, H - 5);
+  const xe = X(D.t[it.i]);
+  if (xe - Lm > 80 && Lm + pw - xe > 80) { c.textAlign = 'center'; c.fillStyle = ink; c.fillText(hms(D.t[it.i]), xe, H - 5); }
+}
+
 /* ---------- 실시간 시계 ---------- */
 function tick() {
   if (!D) return;
-  const L = FM.liveClock(D, S);
+  const L = FM.liveClock(D, S); lastL = L;
   if (FREEZE !== null) { L.i = FM.indexAt(D, FREEZE); L.waiting = L.ended = false; }
   if (L.cycle !== cycle) { if (cycle >= 0) { prevLv = {}; unack = new Map(); acks = []; cur = -1; } cycle = L.cycle; }
   const now = Date.now();
@@ -738,15 +908,14 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
 async function load() {
   try {
     META = await FM.loadData(); D = META.D; S = FM.settings(); TH = FM.thresholds(); prepare();
-    $('src').textContent = `${META.uploaded ? '올린 파일' : '기본 데이터'} ${META.source}, ${D.n.toLocaleString()}행, ${D.dt >= 1 ? Math.round(D.dt) + ' s' : D.dt.toFixed(2) + ' s'} 간격`;
     $('err').style.display = 'none';
     restartClock();
-  } catch (e) { $('err').style.display = 'block'; $('err').textContent = '데이터를 불러오지 못했습니다. ' + e.message + ' 관리자 페이지에서 파일을 다시 올리거나 기본 데이터로 되돌리세요.'; $('src').textContent = '데이터 없음'; }
+  } catch (e) { $('err').style.display = 'block'; $('err').textContent = '데이터를 불러오지 못했습니다. ' + e.message + ' 관리자 페이지에서 파일을 다시 올리거나 기본 데이터로 되돌리세요.'; }
 }
 // 관리자 페이지에서 설정이나 파일을 바꾸면 다시 읽는다.
 if (FM.bc) FM.bc.onmessage = m => { if (m.data === 'data') load(); else { S = FM.settings(); const th = FM.thresholds(); if (JSON.stringify(th) !== JSON.stringify(TH)) { TH = th; prepare(); } restartClock(); } };
 addEventListener('storage', e => { if (e.key === 'fm.settings') { S = FM.settings(); const th = FM.thresholds(); if (JSON.stringify(th) !== JSON.stringify(TH)) { TH = th; prepare(); } restartClock(); } });
-window.__fm = { get cur() { return cur; }, render: i => render(i, true), get D() { return D; }, get E() { return E; } };
+window.__fm = { openDlg: k => openDlg(k), get cur() { return cur; }, render: i => render(i, true), get D() { return D; }, get E() { return E; } };
 load();
 }
 </script>
