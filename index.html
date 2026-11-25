@@ -22,14 +22,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans
 h2{font-size:17px;margin:0 0 10px;font-weight:600}
 
 /* 머리 */
-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px 24px;margin-bottom:14px}
-.clocks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px 18px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px 24px;margin-bottom:14px}
+.clocks{display:flex;flex-wrap:wrap;gap:12px 18px}
 h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;text-wrap:balance}
 .sub{color:var(--mute);font-size:14px;margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px}
 .live{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:500}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
 .live.wait i{background:var(--mute)}
-.tower{display:flex;align-items:center;gap:12px}
 .chip{display:flex;align-items:center;gap:12px;padding:9px 18px 9px 14px;border-radius:999px;background:var(--okbg);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);transition:background .3s,border-color .3s}
 .chip .pulse{position:relative;width:12px;height:12px;border-radius:50%;background:var(--ok);flex:none}
 .chip .pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite}
@@ -75,6 +74,7 @@ button.strong{background:var(--ink);color:var(--panel);border-color:var(--ink);f
 .vessel{padding:10px;display:flex;flex-direction:column;align-items:center}
 .vessel svg{width:100%;max-width:250px;height:auto}
 .phase{font-size:13px;color:var(--mute);text-align:center;margin-top:4px;min-height:2.6em}
+.vessel .chip{margin-top:10px;align-self:stretch;justify-content:center}
 .gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .gauge{padding:12px 14px 14px;display:flex;flex-direction:column;align-items:center;transition:border-color .2s,box-shadow .2s}
 .gauge .lab{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mute)}
@@ -196,9 +196,6 @@ footer a{color:inherit}
   <div>
     <h1>미생물 배양기 실시간 모니터</h1>
     <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span></div>
-  </div>
-  <div class="tower" aria-live="polite">
-    <div class="chip" id="stChip"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
   </div>
   <div class="clocks">
     <div class="clk"><div class="cap"><span>배양 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="배양 시작 시각"></div></div>
@@ -322,6 +319,7 @@ footer a{color:inherit}
       <text x="130" y="328" font-size="12" text-anchor="middle" fill="var(--mute)" id="rpmTxt">0 rpm</text>
     </svg>
     <div class="phase" id="phase">–</div>
+    <div class="chip" id="stChip" aria-live="polite"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
   </div>
   <div class="right">
     <div class="gauges" id="gauges"></div>
