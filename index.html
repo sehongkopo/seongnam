@@ -11,9 +11,8 @@
 --bg:light-dark(#eceeed,#121514);--panel:light-dark(#fff,#1b1f1d);--ink:light-dark(#16201c,#e6ebe8);--mute:light-dark(#5b6762,#97a39e);--line:light-dark(#d5dad7,#2b312e);
 --T:light-dark(#d9480f,#ff8a50);--pH:light-dark(#6741d9,#a28bff);--DO:light-dark(#1c7ed6,#5cb8ff);--rpm:light-dark(#0b7285,#3bc9db);
 --ok:light-dark(#2b8a3e,#69db7c);--warn:light-dark(#d97706,#ffb84d);--dang:light-dark(#d6336c,#ff6b8b);
---warnbg:light-dark(#fff4e0,#3a2c12);--okbg:light-dark(#e3f4e7,#16301f);--dangbg:light-dark(#ffe3ec,#45182a);
---steel:light-dark(#b8c0bc,#56605b);--liq:light-dark(#f3e3b5,#5c5236);--lampoff:light-dark(#d3d9d6,#2e3532)}
-.lamp{stroke:var(--steel);stroke-width:1.5}
+--warnbg:light-dark(#fff4e0,#3a2c12);--pump:light-dark(#a61e4d,#f783ac);--sens:light-dark(#495057,#adb5bd);--okbg:light-dark(#e3f4e7,#16301f);--dangbg:light-dark(#ffe3ec,#45182a);
+--steel:light-dark(#b8c0bc,#56605b);--liq:light-dark(#f3e3b5,#5c5236)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
@@ -30,7 +29,6 @@ h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;tex
 .live i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
 .live.wait i{background:var(--mute)}
 .tower{display:flex;align-items:center;gap:12px}
-.tower svg{width:34px;height:auto;flex:none}
 .chip{display:flex;align-items:center;gap:12px;padding:9px 18px 9px 14px;border-radius:999px;background:var(--okbg);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);transition:background .3s,border-color .3s}
 .chip .pulse{position:relative;width:12px;height:12px;border-radius:50%;background:var(--ok);flex:none}
 .chip .pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite}
@@ -57,7 +55,6 @@ h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;tex
 @keyframes fold{to{transform:rotateX(-90deg)}}
 @keyframes unfold{to{transform:rotateX(0)}}
 .fsep{width:8px;text-align:center;color:#f5f5f2;font:500 calc(var(--h) * .6)/var(--h) "Oswald",sans-serif}
-.lamp{transition:fill .2s}
 .blink{animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:.25}}
 
@@ -157,7 +154,12 @@ dialog::backdrop{background:rgb(10 14 12 / .5)}
 /* 배양 경과 띠 */
 .strip{margin-top:14px;padding:12px 16px}
 .strip .row{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px;gap:10px;flex-wrap:wrap}
-#tl{display:block;width:100%;height:46px}
+#tl{display:block;width:100%;height:150px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13px;color:var(--mute);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:8px;border-radius:2px;display:inline-block}
+.legend i.tick{width:2px;height:12px;border-radius:0;background:var(--ink)}
+.legend i.w{background:color-mix(in srgb,var(--mute) 40%,transparent)!important;box-shadow:inset 0 0 0 1.5px var(--mute)}
 
 /* 트렌드 */
 .ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 14px;margin:14px 0}
@@ -196,12 +198,6 @@ footer a{color:inherit}
     <div class="sub"><span class="live" id="live"><i></i><span id="liveTxt">연결 중</span></span><span id="runinfo"></span></div>
   </div>
   <div class="tower" aria-live="polite">
-    <svg viewBox="0 0 34 92" role="img" aria-label="신호탑">
-      <rect x="15" y="80" width="4" height="10" fill="var(--steel)"/><rect x="7" y="86" width="20" height="5" rx="1" fill="var(--steel)"/>
-      <rect class="lamp" id="lampR" x="5" y="2" width="24" height="24" rx="5" fill="var(--lampoff)"/>
-      <rect class="lamp" id="lampA" x="5" y="28" width="24" height="24" rx="5" fill="var(--lampoff)"/>
-      <rect class="lamp" id="lampG" x="5" y="54" width="24" height="24" rx="5" fill="var(--lampoff)"/>
-    </svg>
     <div class="chip" id="stChip"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
   </div>
   <div class="clk"><div class="cap"><span>배양 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="배양 시작 시각"></div></div>
@@ -268,7 +264,7 @@ footer a{color:inherit}
       <!-- 용기 안 -->
       <g clip-path="url(#vc)">
         <rect x="60" y="56" width="140" height="244" fill="#eef3f5" opacity=".55"/>
-        <rect id="liq" x="60" y="108" width="140" height="200" fill="#f0dca0"/>
+        <rect id="liq" x="60" y="108" width="140" height="200" fill="#fbf6e4"/>
         <rect x="60" y="108" width="140" height="200" fill="url(#gDepth)"/>
         <ellipse id="foam" cx="130" cy="108" rx="62" ry="4.5" fill="#fbf5df" opacity=".95"/>
         <rect x="76" y="80" width="4" height="200" fill="url(#gSteel)" opacity=".85"/>
@@ -352,8 +348,9 @@ footer a{color:inherit}
 </section>
 
 <section class="panel strip">
-  <div class="row"><span>배양 경과와 사건</span><span id="tlTxt"></span></div>
-  <canvas id="tl" aria-label="배양 경과 띠: 사건과 경보 구간"></canvas>
+  <div class="row"><span>배양 경과와 변수별 이벤트</span><span id="tlTxt"></span></div>
+  <canvas id="tl" aria-label="배양 경과 띠: 공정 이벤트와 변수별 경보 구간"></canvas>
+  <div class="legend" id="tlLegend"></div>
 </section>
 
 <div class="panel ctrl">
@@ -531,13 +528,8 @@ function render(i, force) {
     $('ws_' + r.id).textContent = v ? LVTXT[v] + (u ? ' · 미확인' : ' · 확인함') : u ? '해제 · 미확인' : '정상';
     w.setAttribute('aria-label', r.name + ' ' + $('ws_' + r.id).textContent + (u ? ', 눌러서 확인' : ''));
   }
-  // 신호탑
+  // 상태 칩
   const anyUn = unack.size > 0, unLv = Math.max(0, ...[...unack.values()].map(u => u.level));
-  const R_ = $('lampR'), A_ = $('lampA'), G_ = $('lampG');
-  R_.setAttribute('fill', worst === 2 || unLv === 2 ? 'var(--dang)' : 'var(--lampoff)');
-  A_.setAttribute('fill', worst === 1 || (unLv === 1 && worst < 2) ? 'var(--warn)' : 'var(--lampoff)');
-  G_.setAttribute('fill', worst === 0 && !anyUn ? 'var(--ok)' : 'var(--lampoff)');
-  R_.classList.toggle('blink', unLv === 2); A_.classList.toggle('blink', unLv === 1);
   $('stChip').className = 'chip' + (worst === 2 ? ' d' : worst === 1 ? ' w' : '');
   $('stTxt').textContent = ['정상 운전', '주의', '위험'][worst];
   const nAct = Object.values(lvOf).filter(Boolean).length;
@@ -573,10 +565,10 @@ function render(i, force) {
   $('shell').setAttribute('stroke', worst === 2 ? css('--dang') : worst === 1 ? css('--warn') : '#9fb0ba');
   const T = D.T[i], fT = Math.max(0, Math.min(1, (T - 28) / 10));
   $('jacket').setAttribute('fill', `rgb(${Math.round(60 + 190 * fT)},${Math.round(150 - 60 * fT)},${Math.round(230 - 170 * fT)})`);
-  // 배양액 색: OD 가 오를수록 옅은 노랑에서 탁한 황갈색으로
+    // 배지 색: 아이보리. OD 가 오르면 조금 짙은 아이보리로
   const fo = isNaN(D.od[i]) ? 0.3 : Math.min(1, D.od[i] / 60), mix = (a, b) => Math.round(a + (b - a) * fo);
-  $('liq').setAttribute('fill', `rgb(${mix(244, 172)},${mix(232, 120)},${mix(184, 44)})`);
-  $('foam').setAttribute('fill', `rgb(${mix(252, 226)},${mix(247, 205)},${mix(226, 160)})`);
+  $('liq').setAttribute('fill', `rgb(${mix(255, 240)},${mix(252, 228)},${mix(238, 196)})`);
+  $('foam').setAttribute('fill', '#fffdf6');
   // 단계와 기록
   let ph = '–'; for (let k = D.events.length - 1; k >= 0; k--) if (D.events[k].i <= i) { ph = hms(D.t[D.events[k].i]) + ' ' + D.events[k].text; break; }
   $('phase').textContent = ph;
@@ -613,27 +605,43 @@ function fit(cv) {
 }
 const chLevel = { T: ['T'], pH: ['pH'], DO: ['DOlo', 'DOhi'], rpm: ['rpm'] };
 
-/* 배양 경과 띠: 지나간 시간만 칠하고, 사건과 경보 구간을 표시한다. */
+/* 배양 경과 띠: 지나간 시간과 공정 이벤트, 그리고 변수별 줄에 경보 구간을 칠한다. */
+const LANES = [
+  { name: '온도', c: '--T', rules: ['T'] }, { name: 'pH', c: '--pH', rules: ['pH'] }, { name: 'DO', c: '--DO', rules: ['DOlo', 'DOhi'] },
+  { name: '교반', c: '--rpm', rules: ['rpm'] }, { name: '펌프', c: '--pump', rules: ['pump', 'both'] }, { name: '센서', c: '--sens', rules: ['sensor'] }];
+$('tlLegend').innerHTML = '<span><i class="tick"></i>공정 이벤트</span>' + LANES.map(l => `<span><i style="background:var(${l.c})"></i>${l.name}</span>`).join('')
+  + '<span><i style="background:var(--mute)"></i>위험</span><span><i class="w" style="background:var(--mute)"></i>주의</span>';
 function drawTimeline(i) {
-  const [c, W, H] = fit($('tl')), P = D.period, X = t => 1 + (W - 2) * t / P, now = D.t[i];
-  c.fillStyle = css('--line'); c.fillRect(0, 14, W, 12);
-  c.fillStyle = css('--steel'); c.fillRect(0, 14, X(now), 12);
-  const cw = css('--warn'), cd = css('--dang');
+  const [c, W, H] = fit($('tl')), P = D.period, now = D.t[i];
+  const Lm = 44, pw = W - Lm - 2, X = t => Lm + pw * t / P, barY = 10, laneY = 32, laneH = 11, laneG = 6;
+  // 진행 막대
+  c.fillStyle = css('--line'); c.fillRect(Lm, barY, pw, 10);
+  c.fillStyle = css('--steel'); c.fillRect(Lm, barY, X(now) - Lm, 10);
+  // 변수별 줄 바탕과 이름
+  c.font = '500 12px "IBM Plex Sans KR", sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'right';
+  LANES.forEach((l, k) => { const y = laneY + k * (laneH + laneG); c.fillStyle = css('--line'); c.globalAlpha = .45; c.fillRect(Lm, y, pw, laneH); c.globalAlpha = 1; c.fillStyle = css(l.c); c.fillText(l.name, Lm - 6, y + laneH / 2 + 1); });
+  // 공정 이벤트: 막대 위 표시와 줄을 가로지르는 옅은 선
+  const ink = css('--ink');
+  for (const e of D.events) if (e.i <= i) { const x = X(D.t[e.i]); c.fillStyle = ink; c.fillRect(x - 1, barY - 4, 2, 18); c.globalAlpha = .25; c.fillRect(x - .5, laneY, 1, LANES.length * (laneH + laneG) - laneG); c.globalAlpha = 1; }
+  // 경보 구간: 단계가 바뀔 때마다 끊어서 칠한다 (위험 진하게, 주의 옅게)
+  const laneOf = {}; LANES.forEach((l, k) => l.rules.forEach(r => laneOf[r] = k));
+  const seg = (rule, a, b, lv) => { const k = laneOf[rule], y = laneY + k * (laneH + laneG); const col = css(LANES[k].c), x = X(D.t[a]), w = Math.max(3, X(D.t[b]) - x); c.fillStyle = col; c.globalAlpha = lv === 2 ? 1 : .4; c.fillRect(x, y, w, laneH); c.globalAlpha = 1; if (lv === 1) { c.strokeStyle = col; c.lineWidth = 1.5; c.strokeRect(x + .75, y + .75, w - 1.5, laneH - 1.5); } };
   const open = {};
   for (const ch of E.changes) {
     if (ch.i > i) break;
-    if (ch.from === 0) open[ch.rule] = ch;
-    if (ch.to === 0 && open[ch.rule]) { const o = open[ch.rule]; c.fillStyle = o.to === 2 ? cd : cw; c.fillRect(X(D.t[o.i]), 30, Math.max(2, X(D.t[ch.i]) - X(D.t[o.i])), 6); delete open[ch.rule]; }
+    if (open[ch.rule]) seg(ch.rule, open[ch.rule].i, ch.i, open[ch.rule].lv);
+    if (ch.to > 0) open[ch.rule] = { i: ch.i, lv: ch.to }; else delete open[ch.rule];
   }
-  for (const k in open) { const o = open[k]; c.fillStyle = o.to === 2 ? cd : cw; c.fillRect(X(D.t[o.i]), 30, Math.max(2, X(now) - X(D.t[o.i])), 6); }
-  c.fillStyle = css('--ink');
-  for (const e of D.events) if (e.i <= i) { const x = X(D.t[e.i]); c.fillRect(x - 1, 8, 2, 24); }
-  c.fillStyle = css('--ink'); c.beginPath(); const xn = X(now); c.moveTo(xn - 6, 0); c.lineTo(xn + 6, 0); c.lineTo(xn, 9); c.fill();
+  for (const r in open) seg(r, open[r].i, i, open[r].lv);
+  // 현재 위치
+  const xn = X(now); c.fillStyle = ink; c.beginPath(); c.moveTo(xn - 5, 0); c.lineTo(xn + 5, 0); c.lineTo(xn, 8); c.fill();
+  c.globalAlpha = .5; c.fillRect(xn - .5, barY, 1, laneY + LANES.length * (laneH + laneG) - barY); c.globalAlpha = 1;
+  // 시간 눈금
   c.fillStyle = css('--mute'); c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'bottom';
   const step = P > 36 * 3600 ? 12 * 3600 : P > 8 * 3600 ? 3 * 3600 : 3600;
   for (let t = 0; t <= P; t += step) { c.textAlign = t === 0 ? 'left' : t + step > P ? 'right' : 'center'; c.fillText(Math.round(t / 3600) + ' h', X(t), H); }
-  const done = D.events.filter(e => e.i <= i).length;
-  $('tlTxt').textContent = `${(now / 3600).toFixed(2)} h / ${(P / 3600).toFixed(1)} h, 사건 ${done}건 지남`;
+  const done = D.events.filter(e => e.i <= i).length, nal = E.changes.filter(ch => ch.i <= i && ch.from === 0).length;
+  $('tlTxt').textContent = `${(now / 3600).toFixed(2)} h / ${(P / 3600).toFixed(1)} h, 공정 이벤트 ${done}건, 경보 ${nal}건`;
 }
 
 /* 트렌드: 지나간 구간만 그린다. 경보가 켜졌던 구간은 바탕에 옅게 칠한다. */
