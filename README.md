@@ -1,10 +1,15 @@
 # 미생물 배양기 실시간 모니터
 
+**▶ [모니터 열기](https://sehongkopo.github.io/seongnam/)** &nbsp;|&nbsp; [관리자 페이지](https://sehongkopo.github.io/seongnam/admin.html)
+
 E. coli BL21 재조합 단백질 생산 배양의 운전 기록(`data.csv`, 24 h, 1 s 간격)을 실시간 데이터로 가정하고 감시하는 대시보드다.
 배양 시작 시각부터 흐른 시간만큼 기록을 보여 주므로, 아직 오지 않은 시간의 값과 경보는 화면에 나오지 않는다.
+설치 없이 브라우저에서 바로 열린다.
 
-- 모니터: https://sehongkopo.github.io/seongnam/
-- 관리자: https://sehongkopo.github.io/seongnam/admin.html
+| 페이지 | 주소 |
+|---|---|
+| 모니터 | https://sehongkopo.github.io/seongnam/ |
+| 관리자 | https://sehongkopo.github.io/seongnam/admin.html |
 
 ## 화면
 
