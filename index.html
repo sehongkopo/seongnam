@@ -22,7 +22,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans
 h2{font-size:17px;margin:0 0 10px;font-weight:600}
 
 /* 머리 */
-header{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:12px 24px;margin-bottom:14px}
+header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px 24px;margin-bottom:14px}
+.clocks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px 18px}
 h1{font-size:clamp(24px,3.4vw,34px);line-height:1.1;margin:0;font-weight:600;text-wrap:balance}
 .sub{color:var(--mute);font-size:14px;margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px}
 .live{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:500}
@@ -184,7 +185,6 @@ footer{font-size:13px;color:var(--mute);margin-top:16px;display:flex;flex-wrap:w
 footer a{color:inherit}
 #err{display:none;padding:14px 16px;margin-bottom:14px;border:1px solid var(--dang);border-radius:10px;color:var(--dang)}
 
-@media(max-width:1180px){header{grid-template-columns:minmax(0,1fr) auto auto}header>div:first-child{grid-column:1/-1}}
 @media(max-width:1000px){.gauges,.evlist{grid-template-columns:repeat(2,minmax(0,1fr))}.mid,.bottom{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){.db{grid-template-columns:minmax(0,1fr);height:auto}.dl{max-height:200px;border-right:0;border-bottom:1px solid var(--line)}header{grid-template-columns:minmax(0,1fr)}.flip{--h:34px;--w:22px}.top{grid-template-columns:minmax(0,1fr)}.vessel svg{max-width:170px}.ann{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{height:480px}}
 @media(prefers-reduced-motion:reduce){.chip .pulse::after{animation:none}.blink,.win.unack,.fd .ft,.fd .fb{animation:none}.needle{transition:none}.led.on{box-shadow:none}}
@@ -200,8 +200,11 @@ footer a{color:inherit}
   <div class="tower" aria-live="polite">
     <div class="chip" id="stChip"><span class="pulse"></span><div><b id="stTxt">확인 중</b><small id="stSub">경보 없음</small></div></div>
   </div>
-  <div class="clk"><div class="cap"><span>배양 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="배양 시작 시각"></div></div>
-  <div class="clk"><div class="cap"><span id="elCap">배양 진행</span><b class="mono" id="elDays"></b></div><div class="flip" id="fElapsed" aria-label="배양 진행 시간"></div></div>
+  <div class="clocks">
+    <div class="clk"><div class="cap"><span>배양 시작</span><b class="mono" id="startDate">–</b></div><div class="flip" id="fStart" aria-label="배양 시작 시각"></div></div>
+    <div class="clk"><div class="cap"><span id="elCap">배양 진행</span><b class="mono" id="elDays"></b></div><div class="flip" id="fElapsed" aria-label="배양 진행 시간"></div></div>
+    <div class="clk"><div class="cap"><span>피드 시작</span><b class="mono" id="feedCap">대기</b></div><div class="flip" id="fFeed" aria-label="피드 시작 시각"></div></div>
+  </div>
 </header>
 
 <div id="err" role="alert"></div>
@@ -457,7 +460,10 @@ function buildAnn() {
 const ruleName = id => E.rules.find(r => r.id === id).name;
 
 /* ---------- 데이터 준비 ---------- */
+// 피드 시작: 이벤트 이름에 feed, fed-batch, 피드가 들어간 첫 이벤트
+let FEED = null;
 function prepare() {
+  FEED = D.events.find(e => /fed-?batch|feed|피드/i.test(e.text)) || null;
   E = FM.evaluate(D, TH);
   // 변화마다 지속 시간을 붙인다.
   const since = {};
@@ -872,6 +878,11 @@ function tick() {
   const el = FREEZE !== null ? FREEZE : L.waiting ? 0 : L.el;
   setFlip($('fElapsed'), hms(el));
   $('elCap').textContent = L.waiting ? '배양 진행 (대기)' : L.ended ? '배양 진행 (종료)' : '배양 진행';
+  if (FEED && !L.waiting && el >= D.t[FEED.i]) {
+    const fd = new Date(st.getTime() + D.t[FEED.i] * 1000 / L.speed);
+    setFlip($('fFeed'), `${p2(fd.getHours())}:${p2(fd.getMinutes())}:${p2(fd.getSeconds())}`);
+    $('feedCap').textContent = '경과 ' + hms(el - D.t[FEED.i]);
+  } else { setFlip($('fFeed'), '--:--:--'); $('feedCap').textContent = FEED ? '대기' : '기록 없음'; }
   render(L.i);
 }
 // ?t=초 : 그 배양 시각에 화면을 고정한다 (점검용).
